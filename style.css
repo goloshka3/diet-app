@@ -60,6 +60,26 @@ input {
   width: 100%;
 }
 
+/* ===== iPhone(Safari) の日付入力欄の見た目を他の欄と揃える ===== */
+/* iOS は日付欄を独自に描画するので、その装飾を打ち消す */
+input[type="date"] {
+  -webkit-appearance: none; /* iOS 独自の見た目を無効化 */
+  appearance: none;
+  background: #fff;
+  min-height: 44px; /* iOS だと高さがつぶれることがあるので下限を指定 */
+}
+
+/* 欄の中に表示される日付の文字。iOS は既定で中央寄せ気味なので左に揃える */
+input[type="date"]::-webkit-date-and-time-value {
+  text-align: left;
+  margin: 0;
+}
+
+/* 右端のカレンダーアイコンを右寄せに */
+input[type="date"]::-webkit-calendar-picker-indicator {
+  margin-left: auto;
+}
+
 button {
   font-size: 1rem;
   font-weight: 600;
