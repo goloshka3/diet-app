@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <!-- スマホで見たときに拡大されず、画面幅に合わせて表示するための設定 -->
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>食事記録</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header>
+    <h1>🍽️ 食事記録</h1>
+    <p class="sub">ステージ0：食べたものを記録する</p>
+  </header>
+
+  <main>
+    <!-- 入力フォーム -->
+    <form id="add-form">
+      <div class="field">
+        <label for="date-input">日付</label>
+        <input type="date" id="date-input" required>
+      </div>
+      <div class="field">
+        <label for="food-input">食べたもの</label>
+        <input type="text" id="food-input" placeholder="例: 納豆ごはん、みそ汁" required>
+      </div>
+      <button type="submit">追加する</button>
+    </form>
+
+    <!-- 記録の一覧。中身は app.js が作って差し込む -->
+    <section id="log-list"></section>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>

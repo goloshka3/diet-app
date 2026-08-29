@@ -1,0 +1,13 @@
+# OS が作るファイル
+Thumbs.db
+desktop.ini
+.DS_Store
+
+# エディタ
+.vscode/
+*.swp
+
+# 秘密情報（将来 API キーなどを扱うとき用）
+.env
+*.env
+secrets.json
