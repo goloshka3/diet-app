@@ -80,6 +80,19 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   margin-left: auto;
 }
 
+/* 栄養の入力欄を2列に並べる */
+.nutrients {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.hint {
+  margin: 0;
+  font-size: 0.8rem;
+  color: #888;
+}
+
 button {
   font-size: 1rem;
   font-weight: 600;
@@ -114,12 +127,26 @@ button:active {
 .entry {
   display: flex;
   justify-content: space-between;
-  align-items: center;
+  align-items: flex-start;
+  gap: 8px;
   background: #fff;
   border-radius: 8px;
   padding: 10px 12px;
   margin-bottom: 6px;
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
+}
+
+/* 記録の左側（食べたもの＋栄養）を縦に積む */
+.entry-main {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0; /* 長い文字がはみ出さないように */
+}
+
+.nutrition {
+  font-size: 0.8rem;
+  color: #666;
 }
 
 .entry .delete {

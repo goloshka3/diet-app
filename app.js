@@ -1,7 +1,7 @@
 // ===============================================
-//  食事記録アプリ  ステージ0
-//  「食べたもの」を記録して、日付ごとに一覧表示する。
-//  データはブラウザの中（localStorage）に保存する。
+//  食事記録アプリ  ステージ1
+//  「食べたもの」＋栄養（カロリー・たんぱく質など7種類）を記録し、
+//  日付ごとに一覧表示する。データはブラウザの中（localStorage）に保存する。
 // ===============================================
 
 // localStorage に保存するときの「引き出しの名前」。
@@ -13,6 +13,34 @@ const form = document.getElementById("add-form");
 const dateInput = document.getElementById("date-input");
 const foodInput = document.getElementById("food-input");
 const logList = document.getElementById("log-list");
+
+// 栄養の入力欄（7つ）
+const kcalInput = document.getElementById("kcal-input");
+const proteinInput = document.getElementById("protein-input");
+const fatInput = document.getElementById("fat-input");
+const carbInput = document.getElementById("carb-input");
+const fiberInput = document.getElementById("fiber-input");
+const ironInput = document.getElementById("iron-input");
+const calciumInput = document.getElementById("calcium-input");
+
+// 栄養の項目一覧。キー（保存名）とラベル・単位をまとめておくと、
+// 表示や合計のときに同じ書き方を繰り返さずに済む。
+const NUTRIENTS = [
+  { key: "kcal", label: "カロリー", unit: "kcal" },
+  { key: "protein", label: "たんぱく質", unit: "g" },
+  { key: "fat", label: "脂質", unit: "g" },
+  { key: "carb", label: "炭水化物", unit: "g" },
+  { key: "fiber", label: "食物繊維", unit: "g" },
+  { key: "iron", label: "鉄", unit: "mg" },
+  { key: "calcium", label: "カルシウム", unit: "mg" },
+];
+
+
+// 入力文字を数値にする。空欄や数字でないものは 0 として扱う。
+function toNumber(value) {
+  const n = parseFloat(value);
+  return isNaN(n) ? 0 : n;
+}
 
 
 // -----------------------------------------------
@@ -45,14 +73,11 @@ function saveEntries(entries) {
 //  記録の追加・削除
 // -----------------------------------------------
 
-// 1件追加する。
-function addEntry(date, food) {
+// 1件追加する。entry は { date, food, kcal, protein, ... } の形。
+function addEntry(entry) {
   const entries = loadEntries();
-  entries.push({
-    id: Date.now(),   // 重複しない目印として「今の時刻の数値」を使う
-    date: date,       // "2026-08-29" のような文字列
-    food: food,       // 食べたもの
-  });
+  entry.id = Date.now(); // 重複しない目印として「今の時刻の数値」を使う
+  entries.push(entry);
   saveEntries(entries);
   render(); // 画面を作り直す
 }
@@ -107,21 +132,39 @@ function render() {
       const row = document.createElement("div");
       row.className = "entry";
 
+      // 左側：食べたもの＋栄養を縦に積む入れ物
+      const main = document.createElement("div");
+      main.className = "entry-main";
+
       const name = document.createElement("span");
       name.textContent = entry.food;
+      main.appendChild(name);
+
+      const nutrition = document.createElement("span");
+      nutrition.className = "nutrition";
+      nutrition.textContent = formatNutrition(entry);
+      main.appendChild(nutrition);
 
       const delBtn = document.createElement("button");
       delBtn.className = "delete";
       delBtn.textContent = "削除";
       delBtn.addEventListener("click", () => deleteEntry(entry.id));
 
-      row.appendChild(name);
+      row.appendChild(main);
       row.appendChild(delBtn);
       dayBox.appendChild(row);
     }
 
     logList.appendChild(dayBox);
   }
+}
+
+// 記録1件の栄養を「520 kcal ・ たんぱく質 18g ・ …」という短い文字列にする。
+// 古い記録（栄養の項目がない）は 0 として扱う。
+function formatNutrition(entry) {
+  return NUTRIENTS
+    .map((n) => `${n.label} ${toNumber(entry[n.key])}${n.unit}`)
+    .join(" ・ ");
 }
 
 // "2026-08-29" → "2026年8月29日（金）" のように読みやすくする
@@ -143,13 +186,30 @@ form.addEventListener("submit", (event) => {
   const food = foodInput.value.trim();
 
   if (!date || !food) {
-    return; // どちらか空なら何もしない
+    return; // 日付か食べたものが空なら何もしない
   }
 
-  addEntry(date, food);
+  addEntry({
+    date: date,
+    food: food,
+    kcal: toNumber(kcalInput.value),
+    protein: toNumber(proteinInput.value),
+    fat: toNumber(fatInput.value),
+    carb: toNumber(carbInput.value),
+    fiber: toNumber(fiberInput.value),
+    iron: toNumber(ironInput.value),
+    calcium: toNumber(calciumInput.value),
+  });
 
-  // 次の入力に備えて、食べたものの欄だけ空にする
+  // 次の入力に備えて、日付以外の欄を空にする
   foodInput.value = "";
+  kcalInput.value = "";
+  proteinInput.value = "";
+  fatInput.value = "";
+  carbInput.value = "";
+  fiberInput.value = "";
+  ironInput.value = "";
+  calciumInput.value = "";
   foodInput.focus();
 });
 
