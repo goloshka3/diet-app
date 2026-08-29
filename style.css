@@ -124,6 +124,17 @@ button:active {
   border-bottom: 2px solid #ddd;
 }
 
+/* その日の合計を目立たせる帯 */
+.day-total {
+  margin: 0 0 8px;
+  padding: 8px 12px;
+  background: #e8f5e9;
+  border-radius: 8px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #1b5e20;
+}
+
 .entry {
   display: flex;
   justify-content: space-between;

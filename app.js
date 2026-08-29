@@ -42,6 +42,26 @@ function toNumber(value) {
   return isNaN(n) ? 0 : n;
 }
 
+// 小数の足し算で出る細かい誤差（例: 0.1+0.2=0.30000000004）を、
+// 小数第1位までに丸める。
+function roundNutrient(value) {
+  return Math.round(value * 10) / 10;
+}
+
+// 記録の配列を受け取り、栄養ごとの合計を { kcal, protein, ... } で返す。
+function sumNutrition(entries) {
+  const total = {};
+  for (const n of NUTRIENTS) {
+    total[n.key] = 0; // まず全項目を 0 で用意
+  }
+  for (const entry of entries) {
+    for (const n of NUTRIENTS) {
+      total[n.key] += toNumber(entry[n.key]); // 各記録の値を足していく
+    }
+  }
+  return total;
+}
+
 
 // -----------------------------------------------
 //  データの読み書き
@@ -127,6 +147,12 @@ function render() {
     heading.textContent = formatDate(date);
     dayBox.appendChild(heading);
 
+    // その日の合計
+    const totalLine = document.createElement("p");
+    totalLine.className = "day-total";
+    totalLine.textContent = "合計： " + formatNutrition(sumNutrition(byDate[date]));
+    dayBox.appendChild(totalLine);
+
     // その日の記録を1件ずつ
     for (const entry of byDate[date]) {
       const row = document.createElement("div");
@@ -163,7 +189,7 @@ function render() {
 // 古い記録（栄養の項目がない）は 0 として扱う。
 function formatNutrition(entry) {
   return NUTRIENTS
-    .map((n) => `${n.label} ${toNumber(entry[n.key])}${n.unit}`)
+    .map((n) => `${n.label} ${roundNutrient(toNumber(entry[n.key]))}${n.unit}`)
     .join(" ・ ");
 }
 
