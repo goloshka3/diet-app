@@ -11,6 +11,7 @@ const STORAGE_KEY = "diet-app-entries";
 // 画面の部品を先に取っておく（毎回 getElementById を書かなくて済む）
 const form = document.getElementById("add-form");
 const dateInput = document.getElementById("date-input");
+const foodSelect = document.getElementById("food-select");
 const foodInput = document.getElementById("food-input");
 const logList = document.getElementById("log-list");
 
@@ -202,6 +203,39 @@ function formatDate(dateStr) {
 
 
 // -----------------------------------------------
+//  食品一覧（ドロップダウン）
+// -----------------------------------------------
+
+// foods.js の FOODS から <option> を作って select に入れる。
+function buildFoodOptions() {
+  FOODS.forEach((food, index) => {
+    const option = document.createElement("option");
+    option.value = index;          // 何番目の食品かを値にする
+    option.textContent = food.name;
+    foodSelect.appendChild(option);
+  });
+}
+
+// 食品が選ばれたら、名前と栄養7項目を入力欄に写す。
+foodSelect.addEventListener("change", () => {
+  const index = foodSelect.value;
+  if (index === "") {
+    return; // 「— 一覧から選ぶ —」に戻したときは何もしない
+  }
+
+  const food = FOODS[index];
+  foodInput.value = food.name;
+  kcalInput.value = food.kcal;
+  proteinInput.value = food.protein;
+  fatInput.value = food.fat;
+  carbInput.value = food.carb;
+  fiberInput.value = food.fiber;
+  ironInput.value = food.iron;
+  calciumInput.value = food.calcium;
+});
+
+
+// -----------------------------------------------
 //  フォームが送信されたときの処理
 // -----------------------------------------------
 
@@ -228,6 +262,7 @@ form.addEventListener("submit", (event) => {
   });
 
   // 次の入力に備えて、日付以外の欄を空にする
+  foodSelect.value = "";
   foodInput.value = "";
   kcalInput.value = "";
   proteinInput.value = "";
@@ -246,6 +281,9 @@ form.addEventListener("submit", (event) => {
 
 // 日付欄の初期値を「今日」にする
 dateInput.value = new Date().toISOString().slice(0, 10);
+
+// 食品一覧のドロップダウンを組み立てる
+buildFoodOptions();
 
 // 最初の一覧を表示する
 render();

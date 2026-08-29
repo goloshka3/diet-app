@@ -21,6 +21,13 @@
         <input type="date" id="date-input" required>
       </div>
       <div class="field">
+        <label for="food-select">食品を選ぶ（栄養を自動入力）</label>
+        <select id="food-select">
+          <option value="">— 一覧から選ぶ —</option>
+        </select>
+      </div>
+
+      <div class="field">
         <label for="food-input">食べたもの</label>
         <input type="text" id="food-input" placeholder="例: 納豆ごはん、みそ汁" required>
       </div>
@@ -67,6 +74,8 @@
     <section id="log-list"></section>
   </main>
 
+  <!-- foods.js を先に読み込む（app.js が FOODS を使うため） -->
+  <script src="foods.js"></script>
   <script src="app.js"></script>
 </body>
 </html>
