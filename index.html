@@ -26,8 +26,10 @@
           <input type="text" id="barcode-input" placeholder="例: 4901234567890 / チョコレート">
           <button type="button" id="barcode-search">検索</button>
         </div>
-        <button type="button" id="scan-open" class="scan-open-btn">📷 バーコードをカメラで読み取る</button>
-        <button type="button" id="ai-read" class="scan-open-btn">🧠 成分表を撮ってAIで読み取り</button>
+        <div class="scan-row">
+          <button type="button" id="scan-open" class="scan-open-btn">📷 バーコード</button>
+          <button type="button" id="ai-read" class="scan-open-btn">🧠 成分表を撮る</button>
+        </div>
         <input type="file" id="ai-photo" accept="image/*" capture="environment" hidden>
         <p class="hint" id="barcode-status"></p>
         <div id="search-results"></div>

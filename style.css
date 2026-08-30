@@ -215,6 +215,21 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   border: 1px solid #2e7d32;
 }
 
+/* バーコード／成分表ボタンを1行に半分ずつ */
+.scan-row {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.scan-row .scan-open-btn {
+  flex: 1;
+  min-width: 0;
+  margin-top: 0;
+  padding: 10px 6px;
+  font-size: 0.9rem;
+}
+
 /* カメラ映像の全画面オーバーレイ */
 #scanner-overlay {
   position: fixed;
