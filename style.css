@@ -153,39 +153,38 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 /* 栄養の入力欄を2列に並べる */
 .nutrients {
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 6px 10px;
+  grid-template-columns: 1fr;
+  gap: 5px;
 }
 
-/* 栄養の入力欄：ラベルを左、1項目1行でコンパクトに */
+/* 栄養の入力欄：ラベルを左に固定幅、入力欄を固定幅で揃える */
 .nut-field {
   display: flex;
   flex-direction: row;
   align-items: center;
-  gap: 4px;
+  gap: 6px;
 }
 
 .nut-field label {
   flex-shrink: 0;
-  font-size: 0.7rem;
+  width: 6.5em;
+  font-size: 0.8rem;
   font-weight: 400;
-  color: #555;
-  width: 4.8em;
-  overflow: hidden;
+  color: #444;
   white-space: nowrap;
-  text-overflow: ellipsis;
 }
 
 .nut-field input {
-  min-width: 0;
-  flex: 1;
-  padding: 6px 6px;
-  font-size: 0.9rem;
+  flex: none;
+  width: 96px;
+  padding: 6px 8px;
+  font-size: 0.95rem;
+  text-align: right;
 }
 
 .nut-unit {
   flex-shrink: 0;
-  font-size: 0.65rem;
+  font-size: 0.72rem;
   color: #999;
 }
 
