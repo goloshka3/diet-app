@@ -188,9 +188,6 @@ function render() {
     // その日の合計 vs 目標 の判定
     dayBox.appendChild(buildJudgement(total, targets));
 
-    // その日を AI（Claude）で評価するボタンと結果欄
-    dayBox.appendChild(buildDayAi(date, byDate[date]));
-
     // その日の記録を1件ずつ
     for (const entry of byDate[date]) {
       const row = document.createElement("div");
@@ -588,10 +585,6 @@ async function closeScanner() {
 // 成分表の画像読み取り用。精度優先で sonnet（1回 約1円）。
 const AI_MODEL = "claude-sonnet-5";
 
-// その日の栄養チェック用。文字だけの推定計算なので、思考オフで速い haiku を使う。
-//  （sonnet だと"思考"にトークンを使い、返答が途中で切れる問題があった）
-const AI_MODEL_TEXT = "claude-haiku-4-5";
-
 aiReadBtn.addEventListener("click", () => {
   if (!loadApiKey()) {
     barcodeStatus.textContent = "先に「⚙️ 設定」で Claude API キーを保存してください。";
@@ -735,164 +728,6 @@ function fillFromAi(n) {
     fiber: num(n.fiber), iron: num(n.iron), calcium: num(n.calcium),
   });
   foodSelect.value = "";
-}
-
-
-// -----------------------------------------------
-//  その日を AI（Claude）で評価する
-// -----------------------------------------------
-//  記録に無いビタミン類などは、食品名から Claude に推定させる。
-//  画像なし・文字だけなので 1回 数円。
-
-// ボタンと結果欄の部品を作る。
-function buildDayAi(dateStr, entries) {
-  const box = document.createElement("div");
-  box.className = "day-ai";
-
-  const btn = document.createElement("button");
-  btn.type = "button";
-  btn.className = "day-ai-btn";
-  btn.textContent = "🧠 この日をAIで栄養チェック";
-
-  const result = document.createElement("div");
-  result.className = "day-ai-result";
-
-  btn.addEventListener("click", async () => {
-    if (!loadApiKey()) {
-      result.textContent = "先に「⚙️ 設定」で Claude API キーを保存してください。";
-      return;
-    }
-    btn.disabled = true;
-    result.textContent = "Claude が計算中…（10〜20秒）";
-    try {
-      const data = await requestDayAnalysis(dateStr, entries);
-      renderAnalysis(data, result);
-    } catch (e) {
-      console.error(e);
-      result.textContent = "失敗しました: " + e.message;
-    } finally {
-      btn.disabled = false;
-    }
-  });
-
-  box.appendChild(btn);
-  box.appendChild(result);
-  return box;
-}
-
-// AIに推定させたい栄養の一覧（記録に無いものも Claude が食品名から推定）
-const ANALYSIS_NUTRIENTS =
-  "エネルギー,たんぱく質,脂質,炭水化物,食物繊維,食塩相当量,カルシウム,鉄,亜鉛," +
-  "マグネシウム,ビタミンA,ビタミンD,ビタミンB1,ビタミンB2,ビタミンB6,ビタミンB12,葉酸,ビタミンC";
-
-// その日の食事を Claude に送り、栄養ごとの摂取量・目安量・達成率(JSON)を受け取る。
-async function requestDayAnalysis(dateStr, entries) {
-  const lines = entries.map((entry) => {
-    const parts = NUTRIENTS
-      .filter((n) => toNumber(entry[n.key]) > 0)
-      .map((n) => n.label + roundNutrient(toNumber(entry[n.key])) + n.unit);
-    return "- " + entry.food + (parts.length ? "（" + parts.join("、") + "）" : "");
-  }).join("\n");
-
-  const prompt =
-    profileText(PROFILE) + " の人の、" + formatDate(dateStr) + " の1日の食事です。\n\n" +
-    lines + "\n\n" +
-    "各栄養について、この食事からの推定摂取量と、日本人の食事摂取基準（2025年版）での" +
-    "この人の1日の目安量を出し、達成率(%)を計算してください。\n" +
-    "記録に数値がある栄養はその値を使い、無い栄養は食品名から推定してください。\n" +
-    "対象の栄養: " + ANALYSIS_NUTRIENTS + "\n\n" +
-    "説明文は書かず、次の形の JSON のみを返してください:\n" +
-    '{"items":[{"name":"エネルギー","intake":0,"target":0,"unit":"kcal","percent":0,"overBad":false}]}\n' +
-    "overBad は「多すぎるのが良くない栄養」（食塩相当量・脂質・エネルギーの取り過ぎ等）なら true。";
-
-  const res = await fetch("https://api.anthropic.com/v1/messages", {
-    method: "POST",
-    headers: {
-      "content-type": "application/json",
-      "x-api-key": loadApiKey(),
-      "anthropic-version": "2023-06-01",
-      "anthropic-dangerous-direct-browser-access": "true",
-    },
-    body: JSON.stringify({
-      model: AI_MODEL_TEXT,
-      max_tokens: 4000,
-      messages: [{ role: "user", content: prompt }],
-    }),
-  });
-
-  if (!res.ok) {
-    const body = await res.text();
-    throw new Error("APIエラー " + res.status + "（" + body.slice(0, 150) + "）");
-  }
-
-  const data = await res.json();
-  const text = (data.content || []).map((block) => block.text || "").join("");
-  return parseNutritionJson(text); // { items: [...] }
-}
-
-// 分析結果（栄養ごとの摂取/目安/%）を棒グラフで表示する。
-function renderAnalysis(data, container) {
-  container.innerHTML = "";
-  const items = Array.isArray(data.items) ? data.items : [];
-  if (items.length === 0) {
-    container.textContent = "結果を読み取れませんでした。";
-    return;
-  }
-
-  for (const item of items) {
-    const intake = toNumber(item.intake);
-    const target = toNumber(item.target);
-    const percent = item.percent != null
-      ? Math.round(toNumber(item.percent))
-      : (target > 0 ? Math.round((intake / target) * 100) : 0);
-    const status = analysisStatus(percent, !!item.overBad);
-
-    const row = document.createElement("div");
-    row.className = "judge-row";
-
-    const head = document.createElement("div");
-    head.className = "judge-head";
-
-    const label = document.createElement("span");
-    label.className = "judge-label";
-    label.textContent = item.name || "";
-
-    const value = document.createElement("span");
-    value.className = "judge-value";
-    value.textContent = roundNutrient(intake) + " / " + roundNutrient(target) +
-      (item.unit || "") + "（" + percent + "%）";
-
-    const mark = document.createElement("span");
-    mark.className = "judge-mark " + status.className;
-    mark.textContent = status.text;
-
-    head.appendChild(label);
-    head.appendChild(value);
-    head.appendChild(mark);
-
-    const bar = document.createElement("div");
-    bar.className = "judge-bar";
-    const fill = document.createElement("div");
-    fill.className = "judge-bar-fill " + status.className;
-    fill.style.width = Math.min(percent, 100) + "%";
-    bar.appendChild(fill);
-
-    row.appendChild(head);
-    row.appendChild(bar);
-    container.appendChild(row);
-  }
-}
-
-// 達成率(%)から判定を返す。overBad は「多いほど悪い」栄養。
-function analysisStatus(percent, overBad) {
-  if (overBad) {
-    if (percent > 120) return { text: "とりすぎ", className: "under" };
-    if (percent > 100) return { text: "やや多い", className: "soft" };
-    return { text: "OK", className: "ok" };
-  }
-  if (percent >= 100) return { text: "達成", className: "ok" };
-  if (percent >= 70) return { text: "もう少し", className: "soft" };
-  return { text: "不足", className: "under" };
 }
 
 
