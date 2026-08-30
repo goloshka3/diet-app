@@ -805,7 +805,7 @@ async function requestDayEvaluation(dateStr, entries) {
     },
     body: JSON.stringify({
       model: AI_MODEL,
-      max_tokens: 2000,
+      max_tokens: 8000,
       thinking: { type: "disabled" }, // この用途は思考不要。本文にトークンを使わせる
       messages: [{ role: "user", content: prompt }],
     }),
@@ -817,9 +817,13 @@ async function requestDayEvaluation(dateStr, entries) {
   }
 
   const data = await res.json();
+  console.log("Claude評価レスポンス:", data); // 原因調査用（stop_reason / usage を確認）
   const text = (data.content || []).map((block) => block.text || "").join("").trim();
   if (!text) {
     throw new Error("空の返答でした（stop_reason: " + (data.stop_reason || "不明") + "）");
+  }
+  if (data.stop_reason === "max_tokens") {
+    return text + "\n\n（※ 長すぎて途中で切れました）";
   }
   return text;
 }
