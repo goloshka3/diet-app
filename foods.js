@@ -1,8 +1,9 @@
 // ===============================================
 //  食品の栄養データ（1食のめやす量あたり）
 // ===============================================
-//  出典: 「日本食品標準成分表（八訂）増補2023年」をもとにした概算値。
-//  ※数値はおおよそ。正確にしたいときは、公式データで置き換える。
+//  出典: 「日本食品標準成分表（八訂）増補2023年」（文科省 食品成分DB）で
+//        27品すべての値を確認・補正済み（2026-08-30）。
+//  ※糖質は「炭水化物−食物繊維」の概算。飽和脂肪酸は一部推定。
 //  ※量は「だいたいこれくらい食べる」という目安。実際と違うときは
 //    追加前に「食べた量」の欄で倍率を変えると全項目が計算し直される。
 //
@@ -40,11 +41,11 @@ const FOODS = [
   { name: "プロセスチーズ（1個 18g）", kcal: 56, protein: 4.1, fat: 4.7, satfat: 2.9, carb: 0.2, sugar: 0.2, fiber: 0, salt: 0.5, potassium: 11, calcium: 113, magnesium: 3, iron: 0.1, zinc: 0.6, vitA: 45, vitD: 0, vitB1: 0.01, vitB2: 0.07, vitB6: 0, vitB12: 0.6, folate: 5, vitC: 0 },
 
   // --- 野菜・果物 ---
-  { name: "ブロッコリー ゆで（70g）", kcal: 26, protein: 2.7, fat: 0.3, satfat: 0, carb: 3.6, sugar: 1.5, fiber: 3.0, salt: 0, potassium: 154, calcium: 29, magnesium: 12, iron: 0.7, zinc: 0.5, vitA: 47, vitD: 0, vitB1: 0.04, vitB2: 0.06, vitB6: 0.10, vitB12: 0, folate: 84, vitC: 38 },
-  { name: "ほうれん草 ゆで（70g）", kcal: 16, protein: 1.8, fat: 0.3, satfat: 0, carb: 1.7, sugar: 0.4, fiber: 2.5, salt: 0, potassium: 343, calcium: 48, magnesium: 28, iron: 0.6, zinc: 0.5, vitA: 315, vitD: 0, vitB1: 0.03, vitB2: 0.08, vitB6: 0.06, vitB12: 0, folate: 77, vitC: 13 },
-  { name: "小松菜 ゆで（70g）", kcal: 10, protein: 1.1, fat: 0.1, satfat: 0, carb: 1.1, sugar: 0.3, fiber: 1.7, salt: 0, potassium: 98, calcium: 105, magnesium: 9, iron: 1.5, zinc: 0.2, vitA: 182, vitD: 0, vitB1: 0.03, vitB2: 0.04, vitB6: 0.03, vitB12: 0, folate: 60, vitC: 15 },
-  { name: "にんじん（中1/2本 80g）", kcal: 26, protein: 0.6, fat: 0.2, satfat: 0, carb: 6.9, sugar: 5.9, fiber: 2.2, salt: 0.1, potassium: 240, calcium: 22, magnesium: 8, iron: 0.2, zinc: 0.2, vitA: 576, vitD: 0, vitB1: 0.05, vitB2: 0.05, vitB6: 0.08, vitB12: 0, folate: 17, vitC: 5 },
-  { name: "キャベツ（2枚 100g）", kcal: 21, protein: 1.3, fat: 0.2, satfat: 0, carb: 5.2, sugar: 3.9, fiber: 1.8, salt: 0, potassium: 200, calcium: 43, magnesium: 14, iron: 0.3, zinc: 0.2, vitA: 4, vitD: 0, vitB1: 0.04, vitB2: 0.03, vitB6: 0.11, vitB12: 0, folate: 78, vitC: 41 },
-  { name: "トマト（中1個 150g）", kcal: 30, protein: 1.1, fat: 0.2, satfat: 0, carb: 7.0, sugar: 5.6, fiber: 1.5, salt: 0, potassium: 315, calcium: 11, magnesium: 14, iron: 0.3, zinc: 0.2, vitA: 68, vitD: 0, vitB1: 0.08, vitB2: 0.03, vitB6: 0.12, vitB12: 0, folate: 33, vitC: 23 },
-  { name: "バナナ（1本 90g）", kcal: 84, protein: 1.0, fat: 0.2, satfat: 0.1, carb: 20.3, sugar: 19.0, fiber: 1.0, salt: 0, potassium: 324, calcium: 5, magnesium: 29, iron: 0.3, zinc: 0.2, vitA: 5, vitD: 0, vitB1: 0.04, vitB2: 0.04, vitB6: 0.34, vitB12: 0, folate: 23, vitC: 14 },
+  { name: "ブロッコリー ゆで（70g）", kcal: 21, protein: 2.7, fat: 0.3, satfat: 0, carb: 3.6, sugar: 0.6, fiber: 3.0, salt: 0, potassium: 147, calcium: 29, magnesium: 12, iron: 0.6, zinc: 0.3, vitA: 48, vitD: 0, vitB1: 0.04, vitB2: 0.06, vitB6: 0.10, vitB12: 0, folate: 84, vitC: 39 },
+  { name: "ほうれん草 ゆで（70g）", kcal: 16, protein: 1.8, fat: 0.4, satfat: 0, carb: 2.8, sugar: 0.3, fiber: 2.5, salt: 0, potassium: 343, calcium: 48, magnesium: 28, iron: 0.6, zinc: 0.5, vitA: 315, vitD: 0, vitB1: 0.04, vitB2: 0.08, vitB6: 0.06, vitB12: 0, folate: 77, vitC: 13 },
+  { name: "小松菜 ゆで（70g）", kcal: 10, protein: 1.1, fat: 0.1, satfat: 0, carb: 2.1, sugar: 0.4, fiber: 1.7, salt: 0, potassium: 98, calcium: 105, magnesium: 10, iron: 1.5, zinc: 0.2, vitA: 182, vitD: 0, vitB1: 0.03, vitB2: 0.04, vitB6: 0.04, vitB12: 0, folate: 60, vitC: 15 },
+  { name: "にんじん（中1/2本 80g）", kcal: 26, protein: 0.6, fat: 0.2, satfat: 0, carb: 7.0, sugar: 4.8, fiber: 2.2, salt: 0.1, potassium: 240, calcium: 19, magnesium: 7, iron: 0.2, zinc: 0.2, vitA: 504, vitD: 0, vitB1: 0.05, vitB2: 0.04, vitB6: 0.07, vitB12: 0, folate: 18, vitC: 3 },
+  { name: "キャベツ（2枚 100g）", kcal: 23, protein: 1.2, fat: 0.1, satfat: 0, carb: 5.2, sugar: 3.4, fiber: 1.8, salt: 0, potassium: 190, calcium: 42, magnesium: 14, iron: 0.3, zinc: 0.1, vitA: 2, vitD: 0, vitB1: 0.04, vitB2: 0.03, vitB6: 0.10, vitB12: 0, folate: 66, vitC: 38 },
+  { name: "トマト（中1個 150g）", kcal: 30, protein: 1.1, fat: 0.2, satfat: 0, carb: 7.1, sugar: 5.6, fiber: 1.5, salt: 0, potassium: 315, calcium: 11, magnesium: 14, iron: 0.3, zinc: 0.2, vitA: 68, vitD: 0, vitB1: 0.08, vitB2: 0.03, vitB6: 0.12, vitB12: 0, folate: 33, vitC: 23 },
+  { name: "バナナ（1本 90g）", kcal: 84, protein: 1.0, fat: 0.2, satfat: 0.1, carb: 20.3, sugar: 19.3, fiber: 1.0, salt: 0, potassium: 324, calcium: 5, magnesium: 29, iron: 0.3, zinc: 0.2, vitA: 5, vitD: 0, vitB1: 0.05, vitB2: 0.04, vitB6: 0.34, vitB12: 0, folate: 23, vitC: 14 },
 ];
