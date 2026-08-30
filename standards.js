@@ -21,10 +21,11 @@ const PROFILE = {
 
 
 // --- 推定エネルギー必要量（kcal/日）  性別 × 年齢層 × 活動レベル ---
+//  ※男性30-49の low=2350 は2025年版で確認。他セルは2020年版ベース（要確認）。
 const ENERGY = {
   male: {
     "18-29": { low: 2300, mid: 2650, high: 3050 },
-    "30-49": { low: 2300, mid: 2700, high: 3050 },
+    "30-49": { low: 2350, mid: 2700, high: 3050 },
     "50-64": { low: 2200, mid: 2600, high: 2950 },
     "65+":   { low: 2050, mid: 2400, high: 2750 },
   },
@@ -39,12 +40,13 @@ const ENERGY = {
 
 // --- 栄養の推奨量・目標量（1日あたり） ---
 //  protein / iron / calcium = 推奨量、fiber = 目標量（これ以上とりたい量）
+//  男性 fiber は2025年版で 22g に（30-49で確認）。
 const NUTRIENT_STANDARDS = {
   male: {
-    "18-29": { protein: 65, fiber: 21, iron: 7.5, calcium: 800 },
-    "30-49": { protein: 65, fiber: 21, iron: 7.5, calcium: 750 },
-    "50-64": { protein: 65, fiber: 21, iron: 7.5, calcium: 750 },
-    "65+":   { protein: 65, fiber: 20, iron: 7.5, calcium: 750 },
+    "18-29": { protein: 65, fiber: 22, iron: 7.5, calcium: 800 },
+    "30-49": { protein: 65, fiber: 22, iron: 7.5, calcium: 750 },
+    "50-64": { protein: 65, fiber: 22, iron: 7.5, calcium: 750 },
+    "65+":   { protein: 65, fiber: 21, iron: 7.5, calcium: 750 },
   },
   female_yes: { // 月経あり
     "18-29": { protein: 50, fiber: 18, iron: 10.5, calcium: 650 },
@@ -62,18 +64,22 @@ const NUTRIENT_STANDARDS = {
 
 
 // --- その他のミネラル・ビタミンの目安量（1日あたり・性別のみで区別） ---
-//  ※年齢での差は小さいので、ここでは性別だけで持つ（要確認・概算）。
-//  salt/potassium = 目標量、他 = 推奨量または目安量。
+//  日本人の食事摂取基準（2025年版）の成人（30-49歳想定）の値。
+//  salt/potassium = 目標量、vitD/vitB12 = 目安量、他 = 推奨量。
+//  2025年版で変更: 男性 magnesium 380 / zinc 9.5 / vitD 9.0 /
+//    vitB1 1.2 / vitB2 1.7 / vitB6 1.5 / vitB12 4.0（目安量に変更）。
+//  potassium・vitA・folate・satfat比率・salt は2020年版から変更なし。
+//  女性の値は概算（要確認）。
 const MICRO_TARGETS = {
   male: {
-    salt: 7.5, potassium: 3000, magnesium: 370, zinc: 11,
-    vitA: 900, vitD: 8.5, vitB1: 1.4, vitB2: 1.6, vitB6: 1.4,
-    vitB12: 2.4, folate: 240, vitC: 100,
+    salt: 7.5, potassium: 3000, magnesium: 380, zinc: 9.5,
+    vitA: 900, vitD: 9.0, vitB1: 1.2, vitB2: 1.7, vitB6: 1.5,
+    vitB12: 4.0, folate: 240, vitC: 100,
   },
   female: {
-    salt: 6.5, potassium: 2600, magnesium: 290, zinc: 8,
-    vitA: 700, vitD: 8.5, vitB1: 1.1, vitB2: 1.2, vitB6: 1.1,
-    vitB12: 2.4, folate: 240, vitC: 100,
+    salt: 6.5, potassium: 2600, magnesium: 300, zinc: 8,
+    vitA: 700, vitD: 9.0, vitB1: 0.9, vitB2: 1.2, vitB6: 1.1,
+    vitB12: 4.0, folate: 240, vitC: 100,
   },
 };
 
