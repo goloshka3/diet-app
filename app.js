@@ -284,15 +284,8 @@ function render() {
   // 日付を新しい順に並べる
   const dates = Object.keys(byDate).sort().reverse();
 
-  // 何を基準に判定しているかの説明を先頭に出す（設定で変えられる）
-  const profile = loadProfile();
-  const note = document.createElement("p");
-  note.className = "profile-note";
-  note.textContent = "目標の基準： " + profileText(profile);
-  logList.appendChild(note);
-
-  // その日の目標値（毎日同じなのでループの外で1回だけ取得）
-  const targets = getTargets(profile);
+  // その日の目標値（設定で変えられる。毎日同じなのでループの外で1回だけ取得）
+  const targets = getTargets(loadProfile());
 
   const todayStr = new Date().toISOString().slice(0, 10);
   // 直近1週間の境目（今日を含めて7日）
@@ -448,16 +441,21 @@ function buildJudgeRow(item) {
   label.className = "judge-label";
   label.textContent = item.info.label;
 
-  const num = document.createElement("span");
-  num.className = "judge-num";
-  num.textContent = item.percent + "%　" + item.got + "/" + item.goal + item.info.unit;
+  const detail = document.createElement("span");
+  detail.className = "judge-detail";
+  detail.textContent = item.got + " / " + item.goal + item.info.unit;
+
+  const pct = document.createElement("span");
+  pct.className = "judge-pct " + item.status.className;
+  pct.textContent = item.percent + "%";
 
   const mark = document.createElement("span");
   mark.className = "judge-mark " + item.status.className;
   mark.textContent = item.status.text;
 
   head.appendChild(label);
-  head.appendChild(num);
+  head.appendChild(detail);
+  head.appendChild(pct);
   head.appendChild(mark);
 
   const bar = document.createElement("div");

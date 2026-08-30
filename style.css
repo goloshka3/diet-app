@@ -394,11 +394,21 @@ button:active {
   color: #333;
 }
 
-.judge-num {
+.judge-detail {
   flex: 1;
   font-size: 0.72rem;
   color: #999;
 }
+
+.judge-pct {
+  flex-shrink: 0;
+  font-weight: 700;
+  font-size: 0.8rem;
+}
+
+.judge-pct.under { color: #c62828; }
+.judge-pct.soft { color: #8d6e00; }
+.judge-pct.over { color: #e65100; }
 
 .judge-mark {
   flex-shrink: 0;
