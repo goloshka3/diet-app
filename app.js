@@ -369,13 +369,21 @@ function buildDayBox(date, dayEntries, targets, todayStr) {
     main.className = "entry-main";
 
     const name = document.createElement("span");
+    name.className = "entry-name";
     name.textContent = entry.food;
     main.appendChild(name);
 
     const nutrition = document.createElement("span");
     nutrition.className = "nutrition";
     nutrition.textContent = formatNutrition(entry);
+    nutrition.hidden = true; // タップで開く
     main.appendChild(nutrition);
+
+    // 食べたもの部分をタップすると栄養の内訳を開閉
+    main.addEventListener("click", () => {
+      nutrition.hidden = !nutrition.hidden;
+      main.classList.toggle("open", !nutrition.hidden);
+    });
 
     const delBtn = document.createElement("button");
     delBtn.className = "delete";

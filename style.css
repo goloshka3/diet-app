@@ -489,13 +489,25 @@ button:active {
 .entry-main {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 3px;
   min-width: 0; /* 長い文字がはみ出さないように */
+  cursor: pointer;
+}
+
+.entry-name::before {
+  content: "▸ ";
+  color: #aaa;
+  font-size: 0.85em;
+}
+
+.entry-main.open .entry-name::before {
+  content: "▾ ";
 }
 
 .nutrition {
   font-size: 0.8rem;
   color: #666;
+  line-height: 1.5;
 }
 
 .entry .delete {
