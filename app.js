@@ -25,6 +25,8 @@ const apiKeyStatus = document.getElementById("api-key-status");
 const scanOpenBtn = document.getElementById("scan-open");
 const scanCloseBtn = document.getElementById("scan-close");
 const scannerOverlay = document.getElementById("scanner-overlay");
+const aiReadBtn = document.getElementById("ai-read");
+const aiPhotoInput = document.getElementById("ai-photo");
 const foodSelect = document.getElementById("food-select");
 const foodInput = document.getElementById("food-input");
 const logList = document.getElementById("log-list");
@@ -518,6 +520,143 @@ async function closeScanner() {
     scanner = null;
   }
   scannerOverlay.hidden = true;
+}
+
+
+// -----------------------------------------------
+//  成分表を撮って AI（Claude）で読み取る
+// -----------------------------------------------
+//  写真 → 縮小 → Claude API に送信 → 栄養のJSONを受け取る → 入力欄に反映。
+//  サーバーを持たないので、ブラウザから直接 api.anthropic.com を呼ぶ。
+//  そのために "anthropic-dangerous-direct-browser-access" ヘッダを付ける。
+
+// 使うモデル。安くて速い haiku を既定に。
+//  もっと賢く読ませたいときは "claude-sonnet-5"（料金は数倍）に変える。
+const AI_MODEL = "claude-haiku-4-5";
+
+aiReadBtn.addEventListener("click", () => {
+  if (!loadApiKey()) {
+    barcodeStatus.textContent = "先に「⚙️ 設定」で Claude API キーを保存してください。";
+    return;
+  }
+  aiPhotoInput.click(); // 隠してあるファイル選択（＝カメラ）を開く
+});
+
+aiPhotoInput.addEventListener("change", async () => {
+  const file = aiPhotoInput.files[0];
+  aiPhotoInput.value = ""; // 同じ写真をもう一度選べるようにする
+  if (!file) {
+    return;
+  }
+
+  aiReadBtn.disabled = true;
+  try {
+    barcodeStatus.textContent = "画像を準備中…";
+    const image = await resizeImageToBase64(file, 1400);
+
+    barcodeStatus.textContent = "Claude が読み取り中…（数秒〜10秒）";
+    const nutrition = await readLabelWithClaude(image.base64, image.mediaType);
+
+    fillFromAi(nutrition);
+    barcodeStatus.textContent = "読み取りました。数値を確認してから「追加する」を押してください。";
+  } catch (e) {
+    console.error(e);
+    barcodeStatus.textContent = "読み取りに失敗しました: " + e.message;
+  } finally {
+    aiReadBtn.disabled = false;
+  }
+});
+
+// 画像ファイルを、長辺 maxSize px 以内に縮小して base64 文字列にする。
+//  （スマホ写真はそのままだと大きすぎて、料金も時間もかかるため）
+function resizeImageToBase64(file, maxSize) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => {
+      let width = img.width;
+      let height = img.height;
+      const scale = Math.min(1, maxSize / Math.max(width, height));
+      width = Math.round(width * scale);
+      height = Math.round(height * scale);
+
+      const canvas = document.createElement("canvas");
+      canvas.width = width;
+      canvas.height = height;
+      canvas.getContext("2d").drawImage(img, 0, 0, width, height);
+
+      // "data:image/jpeg;base64,XXXX" の XXXX 部分だけ取り出す
+      const dataUrl = canvas.toDataURL("image/jpeg", 0.85);
+      resolve({ base64: dataUrl.split(",")[1], mediaType: "image/jpeg" });
+    };
+    img.onerror = () => reject(new Error("画像を読み込めませんでした"));
+    img.src = URL.createObjectURL(file);
+  });
+}
+
+// 画像を Claude に送り、栄養のオブジェクトを受け取る。
+async function readLabelWithClaude(base64, mediaType) {
+  const prompt =
+    "この画像は食品パッケージの栄養成分表示です。次の項目を読み取り、" +
+    "「100gあたり」に換算してください（表が『1食あたり』等なら重量から換算）。\n" +
+    "表に無い項目は 0。単位は kcal, g, g, g, g, mg, mg。\n" +
+    "説明は一切書かず、次の形の JSON だけを返してください:\n" +
+    '{"name":"商品名（分かれば。無ければ空文字）","kcal":0,"protein":0,"fat":0,"carb":0,"fiber":0,"iron":0,"calcium":0}';
+
+  const res = await fetch("https://api.anthropic.com/v1/messages", {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      "x-api-key": loadApiKey(),
+      "anthropic-version": "2023-06-01",
+      "anthropic-dangerous-direct-browser-access": "true",
+    },
+    body: JSON.stringify({
+      model: AI_MODEL,
+      max_tokens: 400,
+      messages: [
+        {
+          role: "user",
+          content: [
+            { type: "image", source: { type: "base64", media_type: mediaType, data: base64 } },
+            { type: "text", text: prompt },
+          ],
+        },
+      ],
+    }),
+  });
+
+  if (!res.ok) {
+    const body = await res.text();
+    throw new Error("APIエラー " + res.status + "（" + body.slice(0, 150) + "）");
+  }
+
+  const data = await res.json();
+  const text = (data.content || []).map((block) => block.text || "").join("");
+  return parseNutritionJson(text);
+}
+
+// Claude の返答テキストから { ... } を取り出して JSON として読む。
+function parseNutritionJson(text) {
+  const match = text.match(/\{[\s\S]*\}/); // 最初の { から最後の } まで
+  if (!match) {
+    throw new Error("結果を読み取れませんでした（" + text.slice(0, 100) + "）");
+  }
+  return JSON.parse(match[0]);
+}
+
+// AI が読んだ栄養を入力欄に反映する。
+function fillFromAi(n) {
+  if (n.name) {
+    foodInput.value = n.name + "（100gあたり）";
+  }
+  kcalInput.value = roundNutrient(toNumber(n.kcal));
+  proteinInput.value = roundNutrient(toNumber(n.protein));
+  fatInput.value = roundNutrient(toNumber(n.fat));
+  carbInput.value = roundNutrient(toNumber(n.carb));
+  fiberInput.value = roundNutrient(toNumber(n.fiber));
+  ironInput.value = roundNutrient(toNumber(n.iron));
+  calciumInput.value = roundNutrient(toNumber(n.calcium));
+  foodSelect.value = "";
 }
 
 
