@@ -557,14 +557,10 @@ aiPhotoInput.addEventListener("change", async () => {
     barcodeStatus.textContent = "Claude が読み取り中…（数秒〜15秒）";
     const raw = await readLabelWithClaude(image.base64, image.mediaType);
 
-    const per100g = toPer100g(raw); // 100gあたりに換算（計算はアプリ側で）
-    fillFromAi(per100g);
-
-    let msg = "読み取りました。数値を画像と見比べて確認してください。";
-    if (per100g.basisUnknown) {
-      msg = "基準量（○gあたり）が読めませんでした。換算せずそのまま入れています。要確認。";
-    }
-    barcodeStatus.textContent = msg;
+    fillFromAi(raw);
+    barcodeStatus.textContent =
+      "読み取りました。表の「" + (raw.serving || "分量") +
+      "」の値です。食べた量が違うときは数値を直してください。";
   } catch (e) {
     console.error(e);
     barcodeStatus.textContent = "読み取りに失敗しました: " + e.message;
@@ -603,11 +599,11 @@ function resizeImageToBase64(file, maxSize) {
 //  換算はさせない（モデルは暗算が不正確なため）。
 async function readLabelWithClaude(base64, mediaType) {
   const prompt =
-    "この画像は食品の栄養成分表示です。表に印刷されている数値だけを読み取ってください。" +
-    "推測・補完・単位換算はしないこと。表に無い項目は null。\n\n" +
+    "この画像は食品の栄養成分表示です。表に印刷されている数値をそのまま読み取ってください。" +
+    "換算・推測・補完はしないこと。表に無い項目は null。\n\n" +
     "読み取る項目:\n" +
     "- name: 商品名（画像内にあれば。無ければ空文字）\n" +
-    "- basis_grams: 表が「何グラムあたり」の値か（「100g当たり」→100、「1袋(60g)」→60）。グラム数の記載が無ければ null\n" +
+    "- serving: 表が何あたりの値か、書かれている通りの文字列（例「100g当たり」「1袋(60g)当たり」「コップ1杯(200ml)当たり」）\n" +
     "- kcal: エネルギー(kcal の数値)\n" +
     "- protein: たんぱく質(g)\n" +
     "- fat: 脂質(g)\n" +
@@ -616,7 +612,7 @@ async function readLabelWithClaude(base64, mediaType) {
     "- iron: 鉄(mg)\n" +
     "- calcium: カルシウム(mg)\n\n" +
     "説明文なしで、次の形の JSON のみを返す:\n" +
-    '{"name":"","basis_grams":100,"kcal":null,"protein":null,"fat":null,"carb":null,"fiber":null,"iron":null,"calcium":null}';
+    '{"name":"","serving":"","kcal":null,"protein":null,"fat":null,"carb":null,"fiber":null,"iron":null,"calcium":null}';
 
   const res = await fetch("https://api.anthropic.com/v1/messages", {
     method: "POST",
@@ -660,47 +656,29 @@ function parseNutritionJson(text) {
   return JSON.parse(match[0]);
 }
 
-// Claude が読んだ「印刷値」を 100gあたり に換算する（計算はここで行う）。
-//  basis_grams が数値なら 100/その値 を掛ける。不明なら換算せずそのまま。
-function toPer100g(raw) {
-  const grams = Number(raw.basis_grams);
-  const known = grams > 0;
-  const factor = known ? 100 / grams : 1;
-
-  // null / 空 は 0 に。数値は factor を掛けて丸める。
-  const conv = (v) => {
+// Claude が読んだ栄養（表の値そのまま）を入力欄に反映する。
+//  換算はしない。null/空 は 0 にする。
+function fillFromAi(n) {
+  // "1,050" などの区切りを除いて数値化。数値でなければ 0。
+  const num = (v) => {
     if (v === null || v === undefined || v === "") {
       return 0;
     }
-    const num = Number(String(v).replace(/,/g, "")); // "1,050" などの区切りを除去
-    return isNaN(num) ? 0 : roundNutrient(num * factor);
+    const x = Number(String(v).replace(/,/g, ""));
+    return isNaN(x) ? 0 : roundNutrient(x);
   };
 
-  return {
-    name: raw.name || "",
-    basisUnknown: !known,
-    kcal: conv(raw.kcal),
-    protein: conv(raw.protein),
-    fat: conv(raw.fat),
-    carb: conv(raw.carb),
-    fiber: conv(raw.fiber),
-    iron: conv(raw.iron),
-    calcium: conv(raw.calcium),
-  };
-}
-
-// 換算後の栄養を入力欄に反映する。
-function fillFromAi(n) {
-  if (n.name) {
-    foodInput.value = n.name + (n.basisUnknown ? "（要確認）" : "（100gあたり）");
+  const label = [n.name, n.serving ? "（" + n.serving + "）" : ""].join("").trim();
+  if (label) {
+    foodInput.value = label;
   }
-  kcalInput.value = n.kcal;
-  proteinInput.value = n.protein;
-  fatInput.value = n.fat;
-  carbInput.value = n.carb;
-  fiberInput.value = n.fiber;
-  ironInput.value = n.iron;
-  calciumInput.value = n.calcium;
+  kcalInput.value = num(n.kcal);
+  proteinInput.value = num(n.protein);
+  fatInput.value = num(n.fat);
+  carbInput.value = num(n.carb);
+  fiberInput.value = num(n.fiber);
+  ironInput.value = num(n.iron);
+  calciumInput.value = num(n.calcium);
   foodSelect.value = "";
 }
 
