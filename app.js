@@ -104,7 +104,7 @@ function buildNutrientFields() {
     input.type = "number";
     input.id = n.key + "-input";
     input.min = "0";
-    input.step = n.step || "0.1";
+    input.step = "any"; // どんな小数でも受け付ける（検索結果の 418.5 等で弾かれないように）
     input.inputMode = "decimal";
     input.placeholder = "0";
 
