@@ -94,11 +94,11 @@ function buildNutrientFields() {
 
   for (const n of NUTRIENTS) {
     const field = document.createElement("div");
-    field.className = "field";
+    field.className = "field nut-field";
 
     const label = document.createElement("label");
     label.setAttribute("for", n.key + "-input");
-    label.textContent = n.label + " (" + n.unit + ")";
+    label.textContent = n.label;
 
     const input = document.createElement("input");
     input.type = "number";
@@ -108,8 +108,13 @@ function buildNutrientFields() {
     input.inputMode = "decimal";
     input.placeholder = "0";
 
+    const unit = document.createElement("span");
+    unit.className = "nut-unit";
+    unit.textContent = n.unit;
+
     field.appendChild(label);
     field.appendChild(input);
+    field.appendChild(unit);
     (n.basic ? basicBox : detailBox).appendChild(field);
     inputByKey[n.key] = input;
   }
