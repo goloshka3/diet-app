@@ -339,7 +339,9 @@ function buildDayBox(date, dayEntries, targets, todayStr) {
 
   const remainSpan = document.createElement("span");
   remainSpan.className = remain >= 0 ? "day-remain" : "day-remain over";
-  remainSpan.textContent = remain >= 0 ? "（あと" + remain + "）" : "（" + (-remain) + "超過）";
+  remainSpan.textContent = remain >= 0
+    ? "（あと" + remain + "kcal）"
+    : "（" + (-remain) + "kcal超過）";
 
   const count = document.createElement("span");
   count.className = "day-count";
