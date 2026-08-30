@@ -396,8 +396,8 @@ button:active {
 
 .judge-detail {
   flex: 1;
-  font-size: 0.72rem;
-  color: #999;
+  font-size: 0.82rem;
+  color: #444;
 }
 
 .judge-pct {

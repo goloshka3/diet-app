@@ -443,7 +443,7 @@ function buildJudgeRow(item) {
 
   const detail = document.createElement("span");
   detail.className = "judge-detail";
-  detail.textContent = item.got + " / " + item.goal + item.info.unit;
+  detail.textContent = item.got + " / " + item.goal + " " + item.info.unit;
 
   const pct = document.createElement("span");
   pct.className = "judge-pct " + item.status.className;
