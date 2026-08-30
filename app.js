@@ -195,6 +195,71 @@ function deleteEntry(id) {
 //  画面を作る
 // -----------------------------------------------
 
+let summaryPeriod = 7;   // まとめの対象期間（日）。0 = 全期間
+let summaryOpen = false;  // まとめを開いているか（再描画しても維持）
+
+// 期間内の記録から「1日あたり平均」を計算する。
+function summaryData(entries, periodDays) {
+  let inRange = entries;
+  if (periodDays > 0) {
+    const cutoff = new Date();
+    cutoff.setDate(cutoff.getDate() - (periodDays - 1));
+    const cutoffStr = cutoff.toISOString().slice(0, 10);
+    inRange = entries.filter((e) => e.date >= cutoffStr);
+  }
+
+  const dayCount = new Set(inRange.map((e) => e.date)).size;
+  const total = sumNutrition(inRange);
+  const avg = {};
+  for (const key of NUTRIENT_KEYS) {
+    avg[key] = dayCount > 0 ? total[key] / dayCount : 0;
+  }
+  return { avg: avg, dayCount: dayCount };
+}
+
+// 「📊 期間のまとめ」の折りたたみ部品を作る。
+function buildSummaryBox(entries, targets) {
+  const box = document.createElement("details");
+  box.className = "summary-box";
+  box.open = summaryOpen;
+  box.addEventListener("toggle", () => { summaryOpen = box.open; });
+
+  const sum = document.createElement("summary");
+  sum.textContent = "📊 期間のまとめ（1日あたり平均）";
+  box.appendChild(sum);
+
+  const select = document.createElement("select");
+  select.className = "summary-period";
+  [["7", "直近7日"], ["14", "直近14日"], ["30", "直近30日"], ["0", "全期間"]]
+    .forEach(([value, label]) => {
+      const o = document.createElement("option");
+      o.value = value;
+      o.textContent = label;
+      if (Number(value) === summaryPeriod) {
+        o.selected = true;
+      }
+      select.appendChild(o);
+    });
+  select.addEventListener("change", () => {
+    summaryPeriod = Number(select.value);
+    render();
+  });
+  box.appendChild(select);
+
+  const data = summaryData(entries, summaryPeriod);
+  const note = document.createElement("p");
+  note.className = "summary-note";
+  note.textContent = data.dayCount > 0
+    ? "記録がある " + data.dayCount + " 日の1日あたり平均"
+    : "この期間に記録がありません";
+  box.appendChild(note);
+
+  if (data.dayCount > 0) {
+    box.appendChild(buildJudgement(data.avg, targets));
+  }
+  return box;
+}
+
 function render() {
   const entries = loadEntries();
 
@@ -227,6 +292,9 @@ function render() {
 
   // その日の目標値（毎日同じなのでループの外で1回だけ取得）
   const targets = getTargets(profile);
+
+  // 期間のまとめ（1日あたり平均）
+  logList.appendChild(buildSummaryBox(entries, targets));
 
   for (const date of dates) {
     // 日付の見出し
