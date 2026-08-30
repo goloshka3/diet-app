@@ -271,14 +271,21 @@ button:active {
 }
 
 .day {
-  margin-bottom: 20px;
+  margin-bottom: 12px;
 }
 
-.day h2 {
+.day-summary {
+  cursor: pointer;
   font-size: 1rem;
-  margin: 0 0 8px;
-  padding-bottom: 4px;
+  font-weight: 600;
+  padding: 8px 4px;
   border-bottom: 2px solid #ddd;
+  margin-bottom: 8px;
+}
+
+/* 開いている日は見出しを少し目立たせる */
+.day[open] > .day-summary {
+  border-bottom-color: #2e7d32;
 }
 
 /* その日の合計を目立たせる帯 */

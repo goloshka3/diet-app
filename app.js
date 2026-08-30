@@ -296,17 +296,24 @@ function render() {
   // 期間のまとめ（1日あたり平均）
   logList.appendChild(buildSummaryBox(entries, targets));
 
-  for (const date of dates) {
-    // 日付の見出し
-    const dayBox = document.createElement("div");
-    dayBox.className = "day";
+  const todayStr = new Date().toISOString().slice(0, 10);
 
-    const heading = document.createElement("h2");
-    heading.textContent = formatDate(date);
-    dayBox.appendChild(heading);
+  for (const date of dates) {
+    // 各日は折りたたみ。今日だけ開いた状態にする。
+    const dayBox = document.createElement("details");
+    dayBox.className = "day";
+    dayBox.open = date === todayStr;
 
     // その日の合計
     const total = sumNutrition(byDate[date]);
+
+    // 見出し（閉じているときはここだけ見える）
+    const heading = document.createElement("summary");
+    heading.className = "day-summary";
+    const kcal = roundNutrient(toNumber(total.kcal));
+    heading.textContent = formatDate(date) +
+      "　" + kcal + "kcal・" + byDate[date].length + "品";
+    dayBox.appendChild(heading);
 
     const totalLine = document.createElement("p");
     totalLine.className = "day-total";
