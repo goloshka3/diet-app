@@ -12,12 +12,30 @@
 //  （脂質・炭水化物・糖質は「エネルギーに占める割合」の話なので判定しない）
 
 
-// --- あなたの区分（設定）。ここを書き換えると目標値が変わる ---
-const PROFILE = {
+// --- あなたの区分（初期値）。実際の値は「⚙️ 設定」で変更でき、localStorage に保存される ---
+const DEFAULT_PROFILE = {
   sex: "male",       // "male" | "female_yes"（月経あり） | "female_no"（月経なし）
   ageBand: "30-49",  // "18-29" | "30-49" | "50-64" | "65+"
   activity: "low",   // "low"（低い） | "mid"（ふつう） | "high"（高い）
+  kcalTarget: 0,     // カロリー目標を手動指定（0 なら自動計算）
+  proteinTarget: 0,  // たんぱく質目標を手動指定（0 なら自動）
 };
+const PROFILE_STORAGE = "diet-app-profile";
+
+// 保存された設定を読む。無ければ初期値。壊れていても初期値。
+function loadProfile() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(PROFILE_STORAGE) || "{}");
+    return Object.assign({}, DEFAULT_PROFILE, saved);
+  } catch (e) {
+    return Object.assign({}, DEFAULT_PROFILE);
+  }
+}
+
+// 設定を保存する。
+function saveProfile(profile) {
+  localStorage.setItem(PROFILE_STORAGE, JSON.stringify(profile));
+}
 
 
 // --- 推定エネルギー必要量（kcal/日）  性別 × 年齢層 × 活動レベル ---
@@ -88,14 +106,18 @@ const MICRO_TARGETS = {
 function getTargets(profile) {
   // エネルギー表・ミネラル表は male / female の2つだけ（女性はどちらも "female"）
   const energySex = profile.sex === "male" ? "male" : "female";
-  const kcal = ENERGY[energySex][profile.ageBand][profile.activity];
+  const autoKcal = ENERGY[energySex][profile.ageBand][profile.activity];
 
   const n = NUTRIENT_STANDARDS[profile.sex][profile.ageBand];
   const m = MICRO_TARGETS[energySex];
 
+  // 手動指定（0 でなければ）を優先する
+  const kcal = profile.kcalTarget > 0 ? profile.kcalTarget : autoKcal;
+  const protein = profile.proteinTarget > 0 ? profile.proteinTarget : n.protein;
+
   return {
     kcal: kcal,
-    protein: n.protein,
+    protein: protein,
     fiber: n.fiber,
     iron: n.iron,
     calcium: n.calcium,
@@ -124,5 +146,12 @@ function profileText(profile) {
     female_no: "女性（月経なし）",
   }[profile.sex];
   const act = { low: "低い", mid: "ふつう", high: "高い" }[profile.activity];
-  return `${sex}・${profile.ageBand}歳・活動量 ${act}`;
+  let text = `${sex}・${profile.ageBand}歳・活動量 ${act}`;
+  if (profile.kcalTarget > 0) {
+    text += `・カロリー目標 ${profile.kcalTarget}`;
+  }
+  if (profile.proteinTarget > 0) {
+    text += `・たんぱく質目標 ${profile.proteinTarget}g`;
+  }
+  return text;
 }

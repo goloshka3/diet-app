@@ -44,6 +44,19 @@ header h1 {
   font-size: 0.9rem;
 }
 
+.settings-h {
+  margin: 18px 0 0;
+  font-size: 0.85rem;
+  color: #555;
+  border-top: 1px solid #eee;
+  padding-top: 12px;
+}
+
+.settings-h:first-of-type {
+  border-top: none;
+  padding-top: 4px;
+}
+
 .settings .field,
 .settings .hint,
 .settings button {

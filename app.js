@@ -22,6 +22,13 @@ const apiKeyInput = document.getElementById("api-key-input");
 const apiKeyToggleBtn = document.getElementById("api-key-toggle");
 const apiKeySaveBtn = document.getElementById("api-key-save");
 const apiKeyStatus = document.getElementById("api-key-status");
+const pfSex = document.getElementById("pf-sex");
+const pfAge = document.getElementById("pf-age");
+const pfActivity = document.getElementById("pf-activity");
+const pfKcal = document.getElementById("pf-kcal");
+const pfProtein = document.getElementById("pf-protein");
+const pfSaveBtn = document.getElementById("pf-save");
+const pfStatus = document.getElementById("pf-status");
 const scanOpenBtn = document.getElementById("scan-open");
 const scanCloseBtn = document.getElementById("scan-close");
 const scannerOverlay = document.getElementById("scanner-overlay");
@@ -204,14 +211,15 @@ function render() {
   // 日付を新しい順に並べる
   const dates = Object.keys(byDate).sort().reverse();
 
-  // 何を基準に判定しているかの説明を先頭に出す
+  // 何を基準に判定しているかの説明を先頭に出す（設定で変えられる）
+  const profile = loadProfile();
   const note = document.createElement("p");
   note.className = "profile-note";
-  note.textContent = "目標の基準： " + profileText(PROFILE);
+  note.textContent = "目標の基準： " + profileText(profile);
   logList.appendChild(note);
 
   // その日の目標値（毎日同じなのでループの外で1回だけ取得）
-  const targets = getTargets(PROFILE);
+  const targets = getTargets(profile);
 
   for (const date of dates) {
     // 日付の見出し
@@ -472,6 +480,35 @@ apiKeyToggleBtn.addEventListener("click", () => {
 
 // 起動時：保存済みのキーを欄に戻す
 apiKeyInput.value = loadApiKey();
+
+
+// -----------------------------------------------
+//  設定：あなたの条件（プロフィール）
+// -----------------------------------------------
+
+// 保存済みの条件を設定フォームに反映する。
+function fillProfileForm() {
+  const p = loadProfile();
+  pfSex.value = p.sex;
+  pfAge.value = p.ageBand;
+  pfActivity.value = p.activity;
+  pfKcal.value = p.kcalTarget > 0 ? p.kcalTarget : "";
+  pfProtein.value = p.proteinTarget > 0 ? p.proteinTarget : "";
+}
+
+pfSaveBtn.addEventListener("click", () => {
+  saveProfile({
+    sex: pfSex.value,
+    ageBand: pfAge.value,
+    activity: pfActivity.value,
+    kcalTarget: toNumber(pfKcal.value) || 0,
+    proteinTarget: toNumber(pfProtein.value) || 0,
+  });
+  pfStatus.textContent = "保存しました。判定を更新します。";
+  render(); // 目標値が変わったので一覧を作り直す
+});
+
+fillProfileForm();
 
 
 // -----------------------------------------------

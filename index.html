@@ -16,9 +16,48 @@
   <main>
     <!-- 設定（ふだんは閉じている。クリックで開く） -->
     <details class="settings">
-      <summary>⚙️ 設定（AI読み取り用）</summary>
+      <summary>⚙️ 設定</summary>
+
+      <h3 class="settings-h">あなたの条件（目標値の基準）</h3>
       <div class="field">
-        <label for="api-key-input">Claude API キー</label>
+        <label for="pf-sex">性別</label>
+        <select id="pf-sex">
+          <option value="male">男性</option>
+          <option value="female_yes">女性（月経あり）</option>
+          <option value="female_no">女性（月経なし・閉経後）</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="pf-age">年齢層</label>
+        <select id="pf-age">
+          <option value="18-29">18〜29歳</option>
+          <option value="30-49">30〜49歳</option>
+          <option value="50-64">50〜64歳</option>
+          <option value="65+">65歳以上</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="pf-activity">活動レベル</label>
+        <select id="pf-activity">
+          <option value="low">低い（座り仕事中心）</option>
+          <option value="mid">ふつう（通勤・家事・軽い運動）</option>
+          <option value="high">高い（立ち仕事・よく動く）</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="pf-kcal">カロリー目標（空欄で自動計算）</label>
+        <input type="number" id="pf-kcal" min="0" step="10" inputmode="decimal" placeholder="自動">
+      </div>
+      <div class="field">
+        <label for="pf-protein">たんぱく質目標 g（空欄で自動）</label>
+        <input type="number" id="pf-protein" min="0" step="1" inputmode="decimal" placeholder="自動">
+      </div>
+      <button type="button" id="pf-save">この条件で保存</button>
+      <p class="hint" id="pf-status"></p>
+
+      <h3 class="settings-h">Claude API キー（成分表のAI読み取り用）</h3>
+      <div class="field">
+        <label for="api-key-input">API キー</label>
         <div class="key-row">
           <input type="password" id="api-key-input" placeholder="sk-ant-...">
           <button type="button" id="api-key-toggle">表示</button>
