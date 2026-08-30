@@ -332,7 +332,22 @@ function buildDayBox(date, dayEntries, targets, todayStr) {
   const heading = document.createElement("summary");
   heading.className = "day-summary";
   const kcal = roundNutrient(toNumber(total.kcal));
-  heading.textContent = formatDate(date) + "　" + kcal + "kcal・" + dayEntries.length + "品";
+  const remain = Math.round(targets.kcal - kcal);
+
+  const main = document.createElement("span");
+  main.textContent = formatDate(date) + "　" + kcal + "kcal ";
+
+  const remainSpan = document.createElement("span");
+  remainSpan.className = remain >= 0 ? "day-remain" : "day-remain over";
+  remainSpan.textContent = remain >= 0 ? "（あと" + remain + "）" : "（" + (-remain) + "超過）";
+
+  const count = document.createElement("span");
+  count.className = "day-count";
+  count.textContent = " ・" + dayEntries.length + "品";
+
+  heading.appendChild(main);
+  heading.appendChild(remainSpan);
+  heading.appendChild(count);
   dayBox.appendChild(heading);
 
   dayBox.appendChild(buildJudgement(total, targets));

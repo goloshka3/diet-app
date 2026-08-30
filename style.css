@@ -311,6 +311,21 @@ button:active {
   border-bottom-color: #2e7d32;
 }
 
+/* 見出しの「残りカロリー」 */
+.day-remain {
+  color: #2e7d32;
+}
+
+.day-remain.over {
+  color: #c62828;
+}
+
+.day-count {
+  font-weight: 400;
+  color: #888;
+  font-size: 0.9rem;
+}
+
 /* それ以前の記録（1週間より前） */
 .older-days {
   margin: 8px 0 20px;
