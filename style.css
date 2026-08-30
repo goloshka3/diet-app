@@ -288,6 +288,22 @@ button:active {
   border-bottom-color: #2e7d32;
 }
 
+/* それ以前の記録（1週間より前） */
+.older-days {
+  margin: 8px 0 20px;
+}
+
+.older-days > summary {
+  cursor: pointer;
+  font-size: 0.85rem;
+  color: #666;
+  padding: 8px 4px;
+}
+
+.older-days .day {
+  margin-top: 10px;
+}
+
 /* その日の合計を目立たせる帯 */
 .day-total {
   margin: 0 0 8px;

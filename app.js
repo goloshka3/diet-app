@@ -197,6 +197,7 @@ function deleteEntry(id) {
 
 let summaryPeriod = 7;   // まとめの対象期間（日）。0 = 全期間
 let summaryOpen = false;  // まとめを開いているか（再描画しても維持）
+let olderOpen = false;    // 「それ以前の記録」を開いているか
 
 // 期間内の記録から「1日あたり平均」を計算する。
 function summaryData(entries, periodDays) {
@@ -293,66 +294,88 @@ function render() {
   // その日の目標値（毎日同じなのでループの外で1回だけ取得）
   const targets = getTargets(profile);
 
-  // 期間のまとめ（1日あたり平均）
-  logList.appendChild(buildSummaryBox(entries, targets));
-
   const todayStr = new Date().toISOString().slice(0, 10);
+  // 直近1週間の境目（今日を含めて7日）
+  const weekAgo = new Date();
+  weekAgo.setDate(weekAgo.getDate() - 6);
+  const weekAgoStr = weekAgo.toISOString().slice(0, 10);
+
+  // 直近1週間ぶんはそのまま、それより前は折りたたみの中へ
+  const olderBox = document.createElement("details");
+  olderBox.className = "older-days";
+  olderBox.open = olderOpen;
+  olderBox.addEventListener("toggle", () => { olderOpen = olderBox.open; });
+  const olderSummary = document.createElement("summary");
+  olderBox.appendChild(olderSummary);
+  let olderCount = 0;
 
   for (const date of dates) {
-    // 各日は折りたたみ。今日だけ開いた状態にする。
-    const dayBox = document.createElement("details");
-    dayBox.className = "day";
-    dayBox.open = date === todayStr;
-
-    // その日の合計
-    const total = sumNutrition(byDate[date]);
-
-    // 見出し（閉じているときはここだけ見える）
-    const heading = document.createElement("summary");
-    heading.className = "day-summary";
-    const kcal = roundNutrient(toNumber(total.kcal));
-    heading.textContent = formatDate(date) +
-      "　" + kcal + "kcal・" + byDate[date].length + "品";
-    dayBox.appendChild(heading);
-
-    const totalLine = document.createElement("p");
-    totalLine.className = "day-total";
-    totalLine.textContent = "合計： " + formatNutrition(total);
-    dayBox.appendChild(totalLine);
-
-    // その日の合計 vs 目標 の判定
-    dayBox.appendChild(buildJudgement(total, targets));
-
-    // その日の記録を1件ずつ
-    for (const entry of byDate[date]) {
-      const row = document.createElement("div");
-      row.className = "entry";
-
-      // 左側：食べたもの＋栄養を縦に積む入れ物
-      const main = document.createElement("div");
-      main.className = "entry-main";
-
-      const name = document.createElement("span");
-      name.textContent = entry.food;
-      main.appendChild(name);
-
-      const nutrition = document.createElement("span");
-      nutrition.className = "nutrition";
-      nutrition.textContent = formatNutrition(entry);
-      main.appendChild(nutrition);
-
-      const delBtn = document.createElement("button");
-      delBtn.className = "delete";
-      delBtn.textContent = "削除";
-      delBtn.addEventListener("click", () => deleteEntry(entry.id));
-
-      row.appendChild(main);
-      row.appendChild(delBtn);
-      dayBox.appendChild(row);
+    const dayBox = buildDayBox(date, byDate[date], targets, todayStr);
+    if (date >= weekAgoStr) {
+      logList.appendChild(dayBox);
+    } else {
+      olderBox.appendChild(dayBox);
+      olderCount++;
     }
-
-    logList.appendChild(dayBox);
   }
+
+  if (olderCount > 0) {
+    olderSummary.textContent = "それ以前の記録（" + olderCount + "日分）";
+    logList.appendChild(olderBox);
+  }
+
+  // 期間のまとめ（1日あたり平均）は一番下に
+  logList.appendChild(buildSummaryBox(entries, targets));
+}
+
+// 1日ぶんの折りたたみ部品を作る。
+function buildDayBox(date, dayEntries, targets, todayStr) {
+  const dayBox = document.createElement("details");
+  dayBox.className = "day";
+  dayBox.open = date === todayStr; // 今日だけ開いた状態
+
+  const total = sumNutrition(dayEntries);
+
+  const heading = document.createElement("summary");
+  heading.className = "day-summary";
+  const kcal = roundNutrient(toNumber(total.kcal));
+  heading.textContent = formatDate(date) + "　" + kcal + "kcal・" + dayEntries.length + "品";
+  dayBox.appendChild(heading);
+
+  const totalLine = document.createElement("p");
+  totalLine.className = "day-total";
+  totalLine.textContent = "合計： " + formatNutrition(total);
+  dayBox.appendChild(totalLine);
+
+  dayBox.appendChild(buildJudgement(total, targets));
+
+  for (const entry of dayEntries) {
+    const row = document.createElement("div");
+    row.className = "entry";
+
+    const main = document.createElement("div");
+    main.className = "entry-main";
+
+    const name = document.createElement("span");
+    name.textContent = entry.food;
+    main.appendChild(name);
+
+    const nutrition = document.createElement("span");
+    nutrition.className = "nutrition";
+    nutrition.textContent = formatNutrition(entry);
+    main.appendChild(nutrition);
+
+    const delBtn = document.createElement("button");
+    delBtn.className = "delete";
+    delBtn.textContent = "削除";
+    delBtn.addEventListener("click", () => deleteEntry(entry.id));
+
+    row.appendChild(main);
+    row.appendChild(delBtn);
+    dayBox.appendChild(row);
+  }
+
+  return dayBox;
 }
 
 // 記録1件（または合計）の栄養を「エネルギー 520kcal ・ たんぱく質 18g ・ …」にする。
