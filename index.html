@@ -21,13 +21,14 @@
         <input type="date" id="date-input" required>
       </div>
       <div class="field">
-        <label for="barcode-input">バーコード番号で検索（商品の栄養を自動入力）</label>
+        <label for="barcode-input">バーコード番号 または 商品名で検索</label>
         <div class="barcode-row">
-          <input type="text" id="barcode-input" inputmode="numeric" placeholder="例: 4901234567890">
+          <input type="text" id="barcode-input" placeholder="例: 4901234567890 / チョコレート">
           <button type="button" id="barcode-search">検索</button>
         </div>
         <button type="button" id="scan-open" class="scan-open-btn">📷 カメラで読み取る</button>
         <p class="hint" id="barcode-status"></p>
+        <div id="search-results"></div>
       </div>
 
       <div class="field">

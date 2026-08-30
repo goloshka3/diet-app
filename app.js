@@ -1,7 +1,9 @@
 // ===============================================
-//  食事記録アプリ  ステージ1
-//  「食べたもの」＋栄養（カロリー・たんぱく質など7種類）を記録し、
-//  日付ごとに一覧表示する。データはブラウザの中（localStorage）に保存する。
+//  食事記録アプリ
+//  食べたもの＋栄養7種類を記録 → 日付ごとに一覧・その日の合計 →
+//  食事摂取基準と比べて不足を判定 → 補う食材を提案。
+//  食品は「一覧から選ぶ / バーコード・商品名で検索 / 手入力」。
+//  データはブラウザの中（localStorage）に保存する。
 // ===============================================
 
 // localStorage に保存するときの「引き出しの名前」。
@@ -14,6 +16,7 @@ const dateInput = document.getElementById("date-input");
 const barcodeInput = document.getElementById("barcode-input");
 const barcodeSearchBtn = document.getElementById("barcode-search");
 const barcodeStatus = document.getElementById("barcode-status");
+const searchResults = document.getElementById("search-results");
 const scanOpenBtn = document.getElementById("scan-open");
 const scanCloseBtn = document.getElementById("scan-close");
 const scannerOverlay = document.getElementById("scanner-overlay");
@@ -335,42 +338,89 @@ foodSelect.addEventListener("change", () => {
 
 
 // -----------------------------------------------
-//  バーコード検索（Open Food Facts）
+//  商品の検索（Open Food Facts）
 // -----------------------------------------------
 //  Open Food Facts = 世界中の食品データベース（有志運営・無料・APIキー不要）。
-//  バーコード番号を渡すと、その商品の栄養（100gあたり）が返ってくる。
+//  ・入力が数字だけ → バーコード番号として1件だけ取得
+//  ・文字を含む     → 商品名として検索し、候補を一覧表示（選ぶと入力）
 //  日本の商品は登録が少ないことがある。見つからなければ手入力に戻る。
 
-barcodeSearchBtn.addEventListener("click", searchByBarcode);
+barcodeSearchBtn.addEventListener("click", searchProduct);
 
-async function searchByBarcode() {
-  const code = barcodeInput.value.trim();
-  if (!code) {
+// 入力内容を見て、番号検索か名前検索かを振り分ける。
+async function searchProduct() {
+  const query = barcodeInput.value.trim();
+  if (!query) {
     return;
   }
 
-  // 検索中は二度押しを防ぐ
   barcodeSearchBtn.disabled = true;
+  searchResults.innerHTML = "";
   barcodeStatus.textContent = "検索中…";
 
   try {
-    const url = "https://world.openfoodfacts.org/api/v2/product/" +
-      encodeURIComponent(code) + ".json";
-    const res = await fetch(url);      // ネットに問い合わせ（await = 返事を待つ）
-    const data = await res.json();     // 返ってきた JSON を JavaScript の値に
-
-    if (data.status !== 1 || !data.product) {
-      barcodeStatus.textContent = "この番号の商品は見つかりませんでした。栄養は手入力してください。";
-      return;
+    if (/^\d+$/.test(query)) {
+      await lookupBarcode(query); // 数字だけ → 番号検索
+    } else {
+      await searchByName(query);  // それ以外 → 名前検索
     }
-
-    fillFromOpenFoodFacts(data.product);
-    barcodeStatus.textContent = "取得しました（値は100gあたり。実際に食べた量に合わせて直してください）";
   } catch (e) {
     console.error(e);
     barcodeStatus.textContent = "通信エラーで取得できませんでした。電波の良い所で再度お試しください。";
   } finally {
-    barcodeSearchBtn.disabled = false; // 成功でも失敗でもボタンを戻す
+    barcodeSearchBtn.disabled = false;
+  }
+}
+
+// バーコード番号で1件だけ取得する。
+async function lookupBarcode(code) {
+  const url = "https://world.openfoodfacts.org/api/v2/product/" +
+    encodeURIComponent(code) + ".json";
+  const res = await fetch(url);
+  const data = await res.json();
+
+  if (data.status !== 1 || !data.product) {
+    barcodeStatus.textContent = "この番号の商品は見つかりませんでした。栄養は手入力してください。";
+    return;
+  }
+
+  fillFromOpenFoodFacts(data.product);
+  barcodeStatus.textContent = "取得しました（値は100gあたり。実際に食べた量に合わせて直してください）";
+}
+
+// 商品名で検索し、候補を一覧表示する。
+async function searchByName(query) {
+  const url = "https://world.openfoodfacts.org/cgi/search.pl" +
+    "?search_terms=" + encodeURIComponent(query) +
+    "&search_simple=1&action=process&json=1&page_size=10" +
+    "&fields=code,product_name,product_name_ja,brands,nutriments";
+  const res = await fetch(url);
+  const data = await res.json();
+
+  // 栄養データが入っている候補だけに絞る
+  const products = (data.products || []).filter((p) => {
+    const n = p.nutriments || {};
+    return n["energy-kcal_100g"] != null || n.proteins_100g != null;
+  });
+
+  if (products.length === 0) {
+    barcodeStatus.textContent = "栄養データ付きの商品が見つかりませんでした。手入力してください。";
+    return;
+  }
+
+  barcodeStatus.textContent = products.length + "件見つかりました。1つ選んでください。";
+  for (const product of products) {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "search-result";
+    const brand = product.brands ? product.brands + " / " : "";
+    btn.textContent = brand + (product.product_name_ja || product.product_name || "（名称不明）");
+    btn.addEventListener("click", () => {
+      fillFromOpenFoodFacts(product);
+      searchResults.innerHTML = "";
+      barcodeStatus.textContent = "取得しました（100gあたり。食べた量に合わせて直してください）";
+    });
+    searchResults.appendChild(btn);
   }
 }
 
@@ -414,7 +464,7 @@ async function openScanner() {
         // 読み取り成功：番号を入力欄に入れて、カメラを閉じて検索
         barcodeInput.value = decodedText;
         closeScanner();
-        searchByBarcode();
+        searchProduct();
       },
       () => {} // 1フレームごとの「まだ読めない」通知は無視
     );
@@ -468,6 +518,7 @@ form.addEventListener("submit", (event) => {
   // 次の入力に備えて、日付以外の欄を空にする
   barcodeInput.value = "";
   barcodeStatus.textContent = "";
+  searchResults.innerHTML = "";
   foodSelect.value = "";
   foodInput.value = "";
   kcalInput.value = "";

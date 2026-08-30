@@ -107,6 +107,25 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   padding: 10px 16px;
 }
 
+/* 商品名検索の候補リスト */
+#search-results {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.search-result {
+  width: 100%;
+  text-align: left;
+  font-size: 0.85rem;
+  font-weight: 400;
+  padding: 8px 10px;
+  background: #fff;
+  color: #1a1a1a;
+  border: 1px solid #ccc;
+}
+
 /* 「カメラで読み取る」ボタン（白地に緑枠） */
 .scan-open-btn {
   width: 100%;
