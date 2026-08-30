@@ -13,12 +13,12 @@
 
 const FOODS = [
   // --- 主食 ---
-  { name: "ごはん（茶わん1杯 150g）", kcal: 234, protein: 3.8, fat: 0.5, satfat: 0.1, carb: 55.7, sugar: 53.4, fiber: 2.3, salt: 0, potassium: 44, calcium: 5, magnesium: 11, iron: 0.2, zinc: 0.9, vitA: 0, vitD: 0, vitB1: 0.03, vitB2: 0.02, vitB6: 0.03, vitB12: 0, folate: 5, vitC: 0 },
-  { name: "食パン（6枚切り1枚 60g）", kcal: 149, protein: 4.9, fat: 2.5, satfat: 1.0, carb: 27.8, sugar: 25.3, fiber: 2.5, salt: 0.7, potassium: 52, calcium: 13, magnesium: 11, iron: 0.3, zinc: 0.3, vitA: 0, vitD: 0, vitB1: 0.04, vitB2: 0.03, vitB6: 0.02, vitB12: 0, folate: 18, vitC: 0 },
-  { name: "うどん（ゆで1玉 230g）", kcal: 242, protein: 6.0, fat: 0.9, satfat: 0.2, carb: 50.0, sugar: 47.9, fiber: 2.1, salt: 0.7, potassium: 21, calcium: 14, magnesium: 14, iron: 0.7, zinc: 0.7, vitA: 0, vitD: 0, vitB1: 0.05, vitB2: 0.02, vitB6: 0.03, vitB12: 0, folate: 5, vitC: 0 },
-  { name: "そば（ゆで1玉 180g）", kcal: 238, protein: 8.6, fat: 1.8, satfat: 0.4, carb: 47.3, sugar: 42.1, fiber: 5.2, salt: 0, potassium: 61, calcium: 16, magnesium: 49, iron: 1.4, zinc: 0.7, vitA: 0, vitD: 0, vitB1: 0.09, vitB2: 0.02, vitB6: 0.07, vitB12: 0, folate: 14, vitC: 0 },
-  { name: "パスタ（乾めん 80g）", kcal: 278, protein: 9.6, fat: 1.4, satfat: 0.4, carb: 55.6, sugar: 52.6, fiber: 3.0, salt: 0, potassium: 160, calcium: 14, magnesium: 44, iron: 1.1, zinc: 1.2, vitA: 0, vitD: 0, vitB1: 0.15, vitB2: 0.06, vitB6: 0.09, vitB12: 0, folate: 10, vitC: 0 },
-  { name: "オートミール（40g）", kcal: 152, protein: 5.5, fat: 2.3, satfat: 0.5, carb: 27.6, sugar: 23.8, fiber: 3.8, salt: 0, potassium: 104, calcium: 19, magnesium: 40, iron: 1.6, zinc: 0.9, vitA: 0, vitD: 0, vitB1: 0.08, vitB2: 0.03, vitB6: 0.04, vitB12: 0, folate: 12, vitC: 0 },
+  { name: "ごはん（茶わん1杯 150g）", kcal: 234, protein: 3.8, fat: 0.5, satfat: 0.2, carb: 55.7, sugar: 53.4, fiber: 2.3, salt: 0, potassium: 44, calcium: 5, magnesium: 11, iron: 0.2, zinc: 0.9, vitA: 0, vitD: 0, vitB1: 0.03, vitB2: 0.02, vitB6: 0.03, vitB12: 0, folate: 5, vitC: 0 },
+  { name: "食パン（6枚切り1枚 60g）", kcal: 149, protein: 5.3, fat: 2.5, satfat: 0.9, carb: 27.8, sugar: 26.5, fiber: 2.5, salt: 0.7, potassium: 52, calcium: 13, magnesium: 11, iron: 0.3, zinc: 0.3, vitA: 0, vitD: 0, vitB1: 0.04, vitB2: 0.03, vitB6: 0.02, vitB12: 0, folate: 18, vitC: 0 },
+  { name: "うどん（ゆで1玉 230g）", kcal: 219, protein: 6.0, fat: 0.9, satfat: 0.2, carb: 49.7, sugar: 46.7, fiber: 3.0, salt: 0.7, potassium: 21, calcium: 14, magnesium: 14, iron: 0.5, zinc: 0.2, vitA: 0, vitD: 0, vitB1: 0.05, vitB2: 0.02, vitB6: 0.02, vitB12: 0, folate: 5, vitC: 0 },
+  { name: "そば（ゆで1玉 180g）", kcal: 234, protein: 8.6, fat: 1.8, satfat: 0.4, carb: 46.8, sugar: 41.6, fiber: 5.2, salt: 0, potassium: 61, calcium: 16, magnesium: 49, iron: 1.4, zinc: 0.7, vitA: 0, vitD: 0, vitB1: 0.09, vitB2: 0.04, vitB6: 0.07, vitB12: 0, folate: 14, vitC: 0 },
+  { name: "パスタ（乾めん 80g）", kcal: 278, protein: 10.3, fat: 1.4, satfat: 0.3, carb: 58.5, sugar: 54.2, fiber: 4.3, salt: 0, potassium: 160, calcium: 14, magnesium: 44, iron: 1.1, zinc: 1.2, vitA: 0, vitD: 0, vitB1: 0.15, vitB2: 0.05, vitB6: 0.09, vitB12: 0, folate: 10, vitC: 0 },
+  { name: "オートミール（40g）", kcal: 140, protein: 5.5, fat: 2.3, satfat: 0.5, carb: 27.6, sugar: 23.9, fiber: 3.8, salt: 0, potassium: 104, calcium: 19, magnesium: 40, iron: 1.6, zinc: 0.8, vitA: 0, vitD: 0, vitB1: 0.08, vitB2: 0.03, vitB6: 0.04, vitB12: 0, folate: 12, vitC: 0 },
 
   // --- 肉・魚 ---
   { name: "鶏むね肉 皮なし（100g）", kcal: 105, protein: 23.3, fat: 1.9, satfat: 0.5, carb: 0.1, sugar: 0, fiber: 0, salt: 0.1, potassium: 370, calcium: 4, magnesium: 29, iron: 0.3, zinc: 0.6, vitA: 9, vitD: 0.1, vitB1: 0.09, vitB2: 0.10, vitB6: 0.57, vitB12: 0.2, folate: 13, vitC: 3 },
