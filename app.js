@@ -9,6 +9,7 @@
 // localStorage に保存するときの「引き出しの名前」。
 // この名前でデータを出し入れする。
 const STORAGE_KEY = "diet-app-entries";
+const API_KEY_STORAGE = "diet-app-api-key"; // Claude API キーの保存名
 
 // 画面の部品を先に取っておく（毎回 getElementById を書かなくて済む）
 const form = document.getElementById("add-form");
@@ -17,6 +18,10 @@ const barcodeInput = document.getElementById("barcode-input");
 const barcodeSearchBtn = document.getElementById("barcode-search");
 const barcodeStatus = document.getElementById("barcode-status");
 const searchResults = document.getElementById("search-results");
+const apiKeyInput = document.getElementById("api-key-input");
+const apiKeyToggleBtn = document.getElementById("api-key-toggle");
+const apiKeySaveBtn = document.getElementById("api-key-save");
+const apiKeyStatus = document.getElementById("api-key-status");
 const scanOpenBtn = document.getElementById("scan-open");
 const scanCloseBtn = document.getElementById("scan-close");
 const scannerOverlay = document.getElementById("scanner-overlay");
@@ -335,6 +340,33 @@ foodSelect.addEventListener("change", () => {
   ironInput.value = food.iron;
   calciumInput.value = food.calcium;
 });
+
+
+// -----------------------------------------------
+//  設定：Claude API キー
+// -----------------------------------------------
+//  キーはこのブラウザの localStorage だけに保存する。
+//  （サーバーを持たないので、この方式。キーは各自で管理・無効化できる前提）
+
+function loadApiKey() {
+  return localStorage.getItem(API_KEY_STORAGE) || "";
+}
+
+apiKeySaveBtn.addEventListener("click", () => {
+  const key = apiKeyInput.value.trim();
+  localStorage.setItem(API_KEY_STORAGE, key);
+  apiKeyStatus.textContent = key ? "保存しました。" : "キーを空にしました。";
+});
+
+// 「表示」/「隠す」でキーの見え方を切り替える
+apiKeyToggleBtn.addEventListener("click", () => {
+  const nowHidden = apiKeyInput.type === "password";
+  apiKeyInput.type = nowHidden ? "text" : "password";
+  apiKeyToggleBtn.textContent = nowHidden ? "隠す" : "表示";
+});
+
+// 起動時：保存済みのキーを欄に戻す
+apiKeyInput.value = loadApiKey();
 
 
 // -----------------------------------------------

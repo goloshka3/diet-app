@@ -14,6 +14,24 @@
   </header>
 
   <main>
+    <!-- 設定（ふだんは閉じている。クリックで開く） -->
+    <details class="settings">
+      <summary>⚙️ 設定（AI読み取り用）</summary>
+      <div class="field">
+        <label for="api-key-input">Claude API キー</label>
+        <div class="key-row">
+          <input type="password" id="api-key-input" placeholder="sk-ant-...">
+          <button type="button" id="api-key-toggle">表示</button>
+        </div>
+      </div>
+      <p class="hint">
+        このブラウザの中だけに保存されます（コードやサーバーには送られません）。
+        キーは <a href="https://console.anthropic.com/" target="_blank" rel="noopener">console.anthropic.com</a> で取得・無効化できます。
+      </p>
+      <button type="button" id="api-key-save">保存</button>
+      <p class="hint" id="api-key-status"></p>
+    </details>
+
     <!-- 入力フォーム -->
     <form id="add-form">
       <div class="field">

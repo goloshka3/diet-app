@@ -29,6 +29,40 @@ header h1 {
   font-size: 0.85rem;
 }
 
+/* ===== 設定 ===== */
+.settings {
+  background: #fff;
+  border-radius: 12px;
+  padding: 12px 16px;
+  margin-bottom: 16px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
+.settings summary {
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.settings .field,
+.settings .hint,
+.settings button {
+  margin-top: 10px;
+}
+
+/* API キー欄＋「表示」ボタンを横並びに */
+.key-row {
+  display: flex;
+  gap: 8px;
+}
+
+.key-row button {
+  width: auto;
+  flex-shrink: 0;
+  margin-top: 0;
+  padding: 10px 16px;
+}
+
 /* ===== 入力フォーム ===== */
 #add-form {
   background: #fff;
