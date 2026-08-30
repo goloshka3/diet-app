@@ -368,21 +368,31 @@ function buildDayBox(date, dayEntries, targets, todayStr) {
     const main = document.createElement("div");
     main.className = "entry-main";
 
+    // 1行目：食べたもの＋カロリー（常時表示）
+    const line1 = document.createElement("div");
+    line1.className = "entry-line1";
+
     const name = document.createElement("span");
     name.className = "entry-name";
     name.textContent = entry.food;
-    main.appendChild(name);
 
+    const kcalChip = document.createElement("span");
+    kcalChip.className = "entry-kcal";
+    kcalChip.textContent = roundNutrient(toNumber(entry.kcal)) + "kcal";
+
+    line1.appendChild(name);
+    line1.appendChild(kcalChip);
+    main.appendChild(line1);
+
+    // 2行目：栄養の内訳（タップで開閉）
     const nutrition = document.createElement("span");
     nutrition.className = "nutrition";
     nutrition.textContent = formatNutrition(entry);
-    nutrition.hidden = true; // タップで開く
+    nutrition.hidden = true;
     main.appendChild(nutrition);
 
-    // 食べたもの部分をタップすると栄養の内訳を開閉
     main.addEventListener("click", () => {
       nutrition.hidden = !nutrition.hidden;
-      main.classList.toggle("open", !nutrition.hidden);
     });
 
     const delBtn = document.createElement("button");

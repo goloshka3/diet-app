@@ -494,14 +494,18 @@ button:active {
   cursor: pointer;
 }
 
-.entry-name::before {
-  content: "▸ ";
-  color: #aaa;
-  font-size: 0.85em;
+.entry-line1 {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 10px;
 }
 
-.entry-main.open .entry-name::before {
-  content: "▾ ";
+.entry-kcal {
+  flex-shrink: 0;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #2e7d32;
 }
 
 .nutrition {
