@@ -32,29 +32,74 @@ const foodInput = document.getElementById("food-input");
 const amountInput = document.getElementById("amount-input");
 const logList = document.getElementById("log-list");
 
-// 栄養の入力欄（7つ）
-const kcalInput = document.getElementById("kcal-input");
-const proteinInput = document.getElementById("protein-input");
-const fatInput = document.getElementById("fat-input");
-const carbInput = document.getElementById("carb-input");
-const fiberInput = document.getElementById("fiber-input");
-const ironInput = document.getElementById("iron-input");
-const calciumInput = document.getElementById("calcium-input");
-
-// 栄養の項目一覧。キー（保存名）とラベル・単位をまとめておくと、
-// 表示や合計のときに同じ書き方を繰り返さずに済む。
+// 栄養の項目一覧。key=保存名、basic:true は常に表示、それ以外は「詳細」を開くと表示。
+// 入力欄はこの一覧から app.js が自動で作る（HTMLに1つずつ書かない）。
 const NUTRIENTS = [
-  { key: "kcal", label: "カロリー", unit: "kcal" },
-  { key: "protein", label: "たんぱく質", unit: "g" },
-  { key: "fat", label: "脂質", unit: "g" },
-  { key: "carb", label: "炭水化物", unit: "g" },
-  { key: "fiber", label: "食物繊維", unit: "g" },
-  { key: "iron", label: "鉄", unit: "mg" },
-  { key: "calcium", label: "カルシウム", unit: "mg" },
+  { key: "kcal", label: "エネルギー", unit: "kcal", step: "1", basic: true },
+  { key: "protein", label: "たんぱく質", unit: "g", step: "0.1", basic: true },
+  { key: "fat", label: "脂質", unit: "g", step: "0.1", basic: true },
+  { key: "carb", label: "炭水化物", unit: "g", step: "0.1", basic: true },
+  { key: "fiber", label: "食物繊維", unit: "g", step: "0.1", basic: true },
+  { key: "salt", label: "食塩相当量", unit: "g", step: "0.1", basic: true },
+  { key: "calcium", label: "カルシウム", unit: "mg", step: "1", basic: true },
+  { key: "iron", label: "鉄", unit: "mg", step: "0.1", basic: true },
+  { key: "satfat", label: "飽和脂肪酸", unit: "g", step: "0.1" },
+  { key: "sugar", label: "糖質", unit: "g", step: "0.1" },
+  { key: "potassium", label: "カリウム", unit: "mg", step: "1" },
+  { key: "magnesium", label: "マグネシウム", unit: "mg", step: "1" },
+  { key: "zinc", label: "亜鉛", unit: "mg", step: "0.1" },
+  { key: "vitA", label: "ビタミンA", unit: "μg", step: "1" },
+  { key: "vitD", label: "ビタミンD", unit: "μg", step: "0.1" },
+  { key: "vitB1", label: "ビタミンB1", unit: "mg", step: "0.01" },
+  { key: "vitB2", label: "ビタミンB2", unit: "mg", step: "0.01" },
+  { key: "vitB6", label: "ビタミンB6", unit: "mg", step: "0.01" },
+  { key: "vitB12", label: "ビタミンB12", unit: "μg", step: "0.1" },
+  { key: "folate", label: "葉酸", unit: "μg", step: "1" },
+  { key: "vitC", label: "ビタミンC", unit: "mg", step: "1" },
 ];
 
-// このうち「目標と比べて不足を判定する」項目（脂質・炭水化物以外）
-const JUDGED = ["kcal", "protein", "fiber", "iron", "calcium"];
+const NUTRIENT_KEYS = NUTRIENTS.map((n) => n.key);
+
+// key → 入力欄(<input>) の対応。buildNutrientFields() で埋める。
+const inputByKey = {};
+
+// 目標と比べて判定する項目（脂質・炭水化物・糖質はエネルギー比の話なので判定しない）
+const JUDGED = [
+  "kcal", "protein", "satfat", "fiber", "salt", "potassium", "calcium",
+  "magnesium", "iron", "zinc", "vitA", "vitD", "vitB1", "vitB2", "vitB6",
+  "vitB12", "folate", "vitC",
+];
+
+// 「多いほど良くない」栄養（不足ではなく取り過ぎを見る）
+const OVER_BAD = new Set(["satfat", "salt"]);
+
+// NUTRIENTS から入力欄を作って、基本欄／詳細欄に振り分ける。
+function buildNutrientFields() {
+  const basicBox = document.getElementById("nutrients-basic");
+  const detailBox = document.getElementById("nutrients-detail");
+
+  for (const n of NUTRIENTS) {
+    const field = document.createElement("div");
+    field.className = "field";
+
+    const label = document.createElement("label");
+    label.setAttribute("for", n.key + "-input");
+    label.textContent = n.label + " (" + n.unit + ")";
+
+    const input = document.createElement("input");
+    input.type = "number";
+    input.id = n.key + "-input";
+    input.min = "0";
+    input.step = n.step || "0.1";
+    input.inputMode = "decimal";
+    input.placeholder = "0";
+
+    field.appendChild(label);
+    field.appendChild(input);
+    (n.basic ? basicBox : detailBox).appendChild(field);
+    inputByKey[n.key] = input;
+  }
+}
 
 
 // 入力文字を数値にする。空欄や数字でないものは 0 として扱う。
@@ -220,12 +265,13 @@ function render() {
   }
 }
 
-// 記録1件の栄養を「520 kcal ・ たんぱく質 18g ・ …」という短い文字列にする。
-// 古い記録（栄養の項目がない）は 0 として扱う。
+// 記録1件（または合計）の栄養を「エネルギー 520kcal ・ たんぱく質 18g ・ …」にする。
+// 値が入っている項目だけ表示する（0 や未記録は省く）。
 function formatNutrition(entry) {
-  return NUTRIENTS
-    .map((n) => `${n.label} ${roundNutrient(toNumber(entry[n.key]))}${n.unit}`)
-    .join(" ・ ");
+  const parts = NUTRIENTS
+    .filter((n) => toNumber(entry[n.key]) > 0)
+    .map((n) => `${n.label} ${roundNutrient(toNumber(entry[n.key]))}${n.unit}`);
+  return parts.length ? parts.join(" ・ ") : "栄養の記録なし";
 }
 
 // その日の合計(total)と目標(targets)を比べて、判定の表示部品を作る。
@@ -299,6 +345,12 @@ function judgeStatus(key, percent) {
     if (percent < 90) return { text: "少なめ", className: "soft" };
     return { text: "適正", className: "ok" };
   }
+  // 食塩・飽和脂肪酸は「多すぎ」を見る
+  if (OVER_BAD.has(key)) {
+    if (percent > 120) return { text: "とりすぎ", className: "under" };
+    if (percent > 100) return { text: "やや多い", className: "soft" };
+    return { text: "OK", className: "ok" };
+  }
   if (percent >= 100) return { text: "達成", className: "ok" };
   if (percent >= 70) return { text: "もう少し", className: "soft" };
   return { text: "不足", className: "under" };
@@ -345,17 +397,15 @@ foodSelect.addEventListener("change", () => {
 //  「1つ分」の栄養（baseNutrition）を覚えておき、量が変わるたびに
 //  「baseNutrition × 量」で計算し直す。比率を掛け続けないので誤差が溜まらない。
 
-const inputByKey = {
-  kcal: kcalInput, protein: proteinInput, fat: fatInput, carb: carbInput,
-  fiber: fiberInput, iron: ironInput, calcium: calciumInput,
-};
-
 // 1つ分の栄養（量＝1のときの値）
-let baseNutrition = { kcal: 0, protein: 0, fat: 0, carb: 0, fiber: 0, iron: 0, calcium: 0 };
+const baseNutrition = {};
+for (const key of NUTRIENT_KEYS) {
+  baseNutrition[key] = 0;
+}
 
 // 食品選択・バーコード・AI読み取りから呼ぶ。1つ分の値をセットし、欄に反映し、量を1に戻す。
 function applyNutrition(values) {
-  for (const key of NUTRIENTS.map((n) => n.key)) {
+  for (const key of NUTRIENT_KEYS) {
     baseNutrition[key] = toNumber(values[key]);
     inputByKey[key].value = roundNutrient(baseNutrition[key]);
   }
@@ -365,7 +415,7 @@ function applyNutrition(values) {
 // 追加後などに、量と記憶値をまっさらに戻す。
 function resetAmount() {
   amountInput.value = "1";
-  for (const key of NUTRIENTS.map((n) => n.key)) {
+  for (const key of NUTRIENT_KEYS) {
     baseNutrition[key] = 0;
   }
 }
@@ -377,7 +427,7 @@ amountInput.addEventListener("input", () => {
     return; // 入力途中（空など）は何もしない
   }
 
-  for (const key of NUTRIENTS.map((n) => n.key)) {
+  for (const key of NUTRIENT_KEYS) {
     inputByKey[key].value = roundNutrient(baseNutrition[key] * amount);
   }
 
@@ -386,11 +436,14 @@ amountInput.addEventListener("input", () => {
 });
 
 // 栄養欄を手で直したら、その項目の「1つ分」も更新しておく（量と整合させる）。
-for (const key of NUTRIENTS.map((n) => n.key)) {
-  inputByKey[key].addEventListener("input", () => {
-    const amount = toNumber(amountInput.value) || 1;
-    baseNutrition[key] = toNumber(inputByKey[key].value) / (amount > 0 ? amount : 1);
-  });
+// buildNutrientFields() の後に呼ぶ必要があるので関数にしておく。
+function attachNutrientInputListeners() {
+  for (const key of NUTRIENT_KEYS) {
+    inputByKey[key].addEventListener("input", () => {
+      const amount = toNumber(amountInput.value) || 1;
+      baseNutrition[key] = toNumber(inputByKey[key].value) / (amount > 0 ? amount : 1);
+    });
+  }
 }
 
 
@@ -746,17 +799,11 @@ form.addEventListener("submit", (event) => {
   }
 
   // 栄養欄には「量」を反映済みの値が入っている（下の量ハンドラで更新）ので、そのまま保存する。
-  addEntry({
-    date: date,
-    food: food,
-    kcal: toNumber(kcalInput.value),
-    protein: toNumber(proteinInput.value),
-    fat: toNumber(fatInput.value),
-    carb: toNumber(carbInput.value),
-    fiber: toNumber(fiberInput.value),
-    iron: toNumber(ironInput.value),
-    calcium: toNumber(calciumInput.value),
-  });
+  const entry = { date: date, food: food };
+  for (const key of NUTRIENT_KEYS) {
+    entry[key] = toNumber(inputByKey[key].value);
+  }
+  addEntry(entry);
 
   // 次の入力に備えて、日付以外の欄を空にする
   barcodeInput.value = "";
@@ -765,13 +812,9 @@ form.addEventListener("submit", (event) => {
   foodSelect.value = "";
   foodInput.value = "";
   resetAmount(); // 量を 1 に戻す
-  kcalInput.value = "";
-  proteinInput.value = "";
-  fatInput.value = "";
-  carbInput.value = "";
-  fiberInput.value = "";
-  ironInput.value = "";
-  calciumInput.value = "";
+  for (const key of NUTRIENT_KEYS) {
+    inputByKey[key].value = "";
+  }
   foodInput.focus();
 });
 
@@ -779,6 +822,10 @@ form.addEventListener("submit", (event) => {
 // -----------------------------------------------
 //  起動時の処理
 // -----------------------------------------------
+
+// 栄養の入力欄を作る（基本欄／詳細欄）
+buildNutrientFields();
+attachNutrientInputListeners();
 
 // 日付欄の初期値を「今日」にする
 dateInput.value = new Date().toISOString().slice(0, 10);

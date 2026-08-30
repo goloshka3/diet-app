@@ -6,8 +6,10 @@
 //  ※ここの数値はおおよそ。正確には上記の資料で確認して差し替えること。
 //
 //  このアプリで目標と比べる栄養:
-//    カロリー / たんぱく質 / 食物繊維 / 鉄 / カルシウム
-//  （脂質・炭水化物は「エネルギーに占める割合」で見るものなので、ここでは扱わない）
+//    エネルギー / たんぱく質 / 飽和脂肪酸 / 食物繊維 / 食塩相当量 /
+//    カリウム / カルシウム / マグネシウム / 鉄 / 亜鉛 /
+//    ビタミン A・D・B1・B2・B6・B12・葉酸・C
+//  （脂質・炭水化物・糖質は「エネルギーに占める割合」の話なので判定しない）
 
 
 // --- あなたの区分（設定）。ここを書き換えると目標値が変わる ---
@@ -59,19 +61,52 @@ const NUTRIENT_STANDARDS = {
 };
 
 
+// --- その他のミネラル・ビタミンの目安量（1日あたり・性別のみで区別） ---
+//  ※年齢での差は小さいので、ここでは性別だけで持つ（要確認・概算）。
+//  salt/potassium = 目標量、他 = 推奨量または目安量。
+const MICRO_TARGETS = {
+  male: {
+    salt: 7.5, potassium: 3000, magnesium: 370, zinc: 11,
+    vitA: 900, vitD: 8.5, vitB1: 1.4, vitB2: 1.6, vitB6: 1.4,
+    vitB12: 2.4, folate: 240, vitC: 100,
+  },
+  female: {
+    salt: 6.5, potassium: 2600, magnesium: 290, zinc: 8,
+    vitA: 700, vitD: 8.5, vitB1: 1.1, vitB2: 1.2, vitB6: 1.1,
+    vitB12: 2.4, folate: 240, vitC: 100,
+  },
+};
+
+
 // 設定（profile）から、その日の目標値を1つのオブジェクトにまとめて返す。
 function getTargets(profile) {
-  // エネルギー表は male / female の2つだけなので、女性はどちらも "female" を見る
+  // エネルギー表・ミネラル表は male / female の2つだけ（女性はどちらも "female"）
   const energySex = profile.sex === "male" ? "male" : "female";
   const kcal = ENERGY[energySex][profile.ageBand][profile.activity];
 
   const n = NUTRIENT_STANDARDS[profile.sex][profile.ageBand];
+  const m = MICRO_TARGETS[energySex];
+
   return {
     kcal: kcal,
     protein: n.protein,
     fiber: n.fiber,
     iron: n.iron,
     calcium: n.calcium,
+    // 飽和脂肪酸は「エネルギーの7%以下」→ グラムに換算（脂質1g=9kcal）
+    satfat: Math.round((kcal * 0.07) / 9),
+    salt: m.salt,
+    potassium: m.potassium,
+    magnesium: m.magnesium,
+    zinc: m.zinc,
+    vitA: m.vitA,
+    vitD: m.vitD,
+    vitB1: m.vitB1,
+    vitB2: m.vitB2,
+    vitB6: m.vitB6,
+    vitB12: m.vitB12,
+    folate: m.folate,
+    vitC: m.vitC,
   };
 }
 

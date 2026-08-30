@@ -123,6 +123,18 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   gap: 12px;
 }
 
+/* 詳細な栄養（折りたたみ） */
+.nutrients-more summary {
+  cursor: pointer;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #444;
+}
+
+.nutrients-more .nutrients {
+  margin-top: 12px;
+}
+
 .hint {
   margin: 0;
   font-size: 0.8rem;
