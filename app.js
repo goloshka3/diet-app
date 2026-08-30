@@ -500,26 +500,29 @@ function saveMyFoods(arr) {
 // 内蔵 FOODS ＋ 登録食品 を1つの配列にまとめたもの（選択の値＝この配列の添字）
 let combinedFoods = [];
 
-// ドロップダウンを組み立て直す。
+// ドロップダウンを組み立て直す。登録した食品を先頭に、内蔵27品を後ろに。
 function buildFoodOptions() {
   foodSelect.innerHTML = '<option value="">— 一覧から選ぶ —</option>';
   combinedFoods = [];
 
-  FOODS.forEach((food) => {
-    combinedFoods.push(food);
-    foodSelect.appendChild(makeFoodOption(food, combinedFoods.length - 1));
-  });
-
   const myFoods = loadMyFoods();
   if (myFoods.length > 0) {
-    const group = document.createElement("optgroup");
-    group.label = "登録した食品";
+    const myGroup = document.createElement("optgroup");
+    myGroup.label = "登録した食品";
     myFoods.forEach((food) => {
       combinedFoods.push(food);
-      group.appendChild(makeFoodOption(food, combinedFoods.length - 1));
+      myGroup.appendChild(makeFoodOption(food, combinedFoods.length - 1));
     });
-    foodSelect.appendChild(group);
+    foodSelect.appendChild(myGroup);
   }
+
+  const builtinGroup = document.createElement("optgroup");
+  builtinGroup.label = "内蔵の食品";
+  FOODS.forEach((food) => {
+    combinedFoods.push(food);
+    builtinGroup.appendChild(makeFoodOption(food, combinedFoods.length - 1));
+  });
+  foodSelect.appendChild(builtinGroup);
 }
 
 function makeFoodOption(food, index) {
