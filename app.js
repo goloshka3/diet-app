@@ -29,6 +29,7 @@ const aiReadBtn = document.getElementById("ai-read");
 const aiPhotoInput = document.getElementById("ai-photo");
 const foodSelect = document.getElementById("food-select");
 const foodInput = document.getElementById("food-input");
+const amountInput = document.getElementById("amount-input");
 const logList = document.getElementById("log-list");
 
 // 栄養の入力欄（7つ）
@@ -334,14 +335,63 @@ foodSelect.addEventListener("change", () => {
 
   const food = FOODS[index];
   foodInput.value = food.name;
-  kcalInput.value = food.kcal;
-  proteinInput.value = food.protein;
-  fatInput.value = food.fat;
-  carbInput.value = food.carb;
-  fiberInput.value = food.fiber;
-  ironInput.value = food.iron;
-  calciumInput.value = food.calcium;
+  applyNutrition(food); // food は kcal/protein/... を持つ
 });
+
+
+// -----------------------------------------------
+//  食べた量（倍率）
+// -----------------------------------------------
+//  「1つ分」の栄養（baseNutrition）を覚えておき、量が変わるたびに
+//  「baseNutrition × 量」で計算し直す。比率を掛け続けないので誤差が溜まらない。
+
+const inputByKey = {
+  kcal: kcalInput, protein: proteinInput, fat: fatInput, carb: carbInput,
+  fiber: fiberInput, iron: ironInput, calcium: calciumInput,
+};
+
+// 1つ分の栄養（量＝1のときの値）
+let baseNutrition = { kcal: 0, protein: 0, fat: 0, carb: 0, fiber: 0, iron: 0, calcium: 0 };
+
+// 食品選択・バーコード・AI読み取りから呼ぶ。1つ分の値をセットし、欄に反映し、量を1に戻す。
+function applyNutrition(values) {
+  for (const key of NUTRIENTS.map((n) => n.key)) {
+    baseNutrition[key] = toNumber(values[key]);
+    inputByKey[key].value = roundNutrient(baseNutrition[key]);
+  }
+  amountInput.value = "1";
+}
+
+// 追加後などに、量と記憶値をまっさらに戻す。
+function resetAmount() {
+  amountInput.value = "1";
+  for (const key of NUTRIENTS.map((n) => n.key)) {
+    baseNutrition[key] = 0;
+  }
+}
+
+// 量が変わったら、各栄養欄を「1つ分 × 量」に更新し、商品名に「×N」を付ける。
+amountInput.addEventListener("input", () => {
+  const amount = toNumber(amountInput.value);
+  if (amount <= 0) {
+    return; // 入力途中（空など）は何もしない
+  }
+
+  for (const key of NUTRIENTS.map((n) => n.key)) {
+    inputByKey[key].value = roundNutrient(baseNutrition[key] * amount);
+  }
+
+  const baseName = foodInput.value.replace(/\s*×[\d.]+\s*$/, "");
+  foodInput.value = amount === 1 ? baseName : baseName + " ×" + amount;
+});
+
+// 栄養欄を手で直したら、その項目の「1つ分」も更新しておく（量と整合させる）。
+for (const key of NUTRIENTS.map((n) => n.key)) {
+  inputByKey[key].addEventListener("input", () => {
+    const amount = toNumber(amountInput.value) || 1;
+    baseNutrition[key] = toNumber(inputByKey[key].value) / (amount > 0 ? amount : 1);
+  });
+}
 
 
 // -----------------------------------------------
@@ -464,14 +514,16 @@ function fillFromOpenFoodFacts(product) {
   const name = product.product_name_ja || product.product_name || "商品";
 
   foodInput.value = name + "（100gあたり）";
-  kcalInput.value = roundNutrient(toNumber(n["energy-kcal_100g"]));
-  proteinInput.value = roundNutrient(toNumber(n.proteins_100g));
-  fatInput.value = roundNutrient(toNumber(n.fat_100g));
-  carbInput.value = roundNutrient(toNumber(n.carbohydrates_100g));
-  fiberInput.value = roundNutrient(toNumber(n.fiber_100g));
-  // 鉄・カルシウムは g 単位で返るので 1000倍して mg にする
-  ironInput.value = roundNutrient(toNumber(n.iron_100g) * 1000);
-  calciumInput.value = roundNutrient(toNumber(n.calcium_100g) * 1000);
+  applyNutrition({
+    kcal: toNumber(n["energy-kcal_100g"]),
+    protein: toNumber(n.proteins_100g),
+    fat: toNumber(n.fat_100g),
+    carb: toNumber(n.carbohydrates_100g),
+    fiber: toNumber(n.fiber_100g),
+    // 鉄・カルシウムは g 単位で返るので 1000倍して mg にする
+    iron: toNumber(n.iron_100g) * 1000,
+    calcium: toNumber(n.calcium_100g) * 1000,
+  });
 
   foodSelect.value = ""; // 一覧の選択はクリア
 }
@@ -672,13 +724,10 @@ function fillFromAi(n) {
   if (label) {
     foodInput.value = label;
   }
-  kcalInput.value = num(n.kcal);
-  proteinInput.value = num(n.protein);
-  fatInput.value = num(n.fat);
-  carbInput.value = num(n.carb);
-  fiberInput.value = num(n.fiber);
-  ironInput.value = num(n.iron);
-  calciumInput.value = num(n.calcium);
+  applyNutrition({
+    kcal: num(n.kcal), protein: num(n.protein), fat: num(n.fat), carb: num(n.carb),
+    fiber: num(n.fiber), iron: num(n.iron), calcium: num(n.calcium),
+  });
   foodSelect.value = "";
 }
 
@@ -697,6 +746,7 @@ form.addEventListener("submit", (event) => {
     return; // 日付か食べたものが空なら何もしない
   }
 
+  // 栄養欄には「量」を反映済みの値が入っている（下の量ハンドラで更新）ので、そのまま保存する。
   addEntry({
     date: date,
     food: food,
@@ -715,6 +765,7 @@ form.addEventListener("submit", (event) => {
   searchResults.innerHTML = "";
   foodSelect.value = "";
   foodInput.value = "";
+  resetAmount(); // 量を 1 に戻す
   kcalInput.value = "";
   proteinInput.value = "";
   fatInput.value = "";
