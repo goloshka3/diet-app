@@ -11,6 +11,9 @@ const STORAGE_KEY = "diet-app-entries";
 // 画面の部品を先に取っておく（毎回 getElementById を書かなくて済む）
 const form = document.getElementById("add-form");
 const dateInput = document.getElementById("date-input");
+const barcodeInput = document.getElementById("barcode-input");
+const barcodeSearchBtn = document.getElementById("barcode-search");
+const barcodeStatus = document.getElementById("barcode-status");
 const foodSelect = document.getElementById("food-select");
 const foodInput = document.getElementById("food-input");
 const logList = document.getElementById("log-list");
@@ -329,6 +332,65 @@ foodSelect.addEventListener("change", () => {
 
 
 // -----------------------------------------------
+//  バーコード検索（Open Food Facts）
+// -----------------------------------------------
+//  Open Food Facts = 世界中の食品データベース（有志運営・無料・APIキー不要）。
+//  バーコード番号を渡すと、その商品の栄養（100gあたり）が返ってくる。
+//  日本の商品は登録が少ないことがある。見つからなければ手入力に戻る。
+
+barcodeSearchBtn.addEventListener("click", searchByBarcode);
+
+async function searchByBarcode() {
+  const code = barcodeInput.value.trim();
+  if (!code) {
+    return;
+  }
+
+  // 検索中は二度押しを防ぐ
+  barcodeSearchBtn.disabled = true;
+  barcodeStatus.textContent = "検索中…";
+
+  try {
+    const url = "https://world.openfoodfacts.org/api/v2/product/" +
+      encodeURIComponent(code) + ".json";
+    const res = await fetch(url);      // ネットに問い合わせ（await = 返事を待つ）
+    const data = await res.json();     // 返ってきた JSON を JavaScript の値に
+
+    if (data.status !== 1 || !data.product) {
+      barcodeStatus.textContent = "この番号の商品は見つかりませんでした。栄養は手入力してください。";
+      return;
+    }
+
+    fillFromOpenFoodFacts(data.product);
+    barcodeStatus.textContent = "取得しました（値は100gあたり。実際に食べた量に合わせて直してください）";
+  } catch (e) {
+    console.error(e);
+    barcodeStatus.textContent = "通信エラーで取得できませんでした。電波の良い所で再度お試しください。";
+  } finally {
+    barcodeSearchBtn.disabled = false; // 成功でも失敗でもボタンを戻す
+  }
+}
+
+// Open Food Facts の商品データを、入力欄に写す。
+function fillFromOpenFoodFacts(product) {
+  const n = product.nutriments || {};
+  const name = product.product_name_ja || product.product_name || "商品";
+
+  foodInput.value = name + "（100gあたり）";
+  kcalInput.value = roundNutrient(toNumber(n["energy-kcal_100g"]));
+  proteinInput.value = roundNutrient(toNumber(n.proteins_100g));
+  fatInput.value = roundNutrient(toNumber(n.fat_100g));
+  carbInput.value = roundNutrient(toNumber(n.carbohydrates_100g));
+  fiberInput.value = roundNutrient(toNumber(n.fiber_100g));
+  // 鉄・カルシウムは g 単位で返るので 1000倍して mg にする
+  ironInput.value = roundNutrient(toNumber(n.iron_100g) * 1000);
+  calciumInput.value = roundNutrient(toNumber(n.calcium_100g) * 1000);
+
+  foodSelect.value = ""; // 一覧の選択はクリア
+}
+
+
+// -----------------------------------------------
 //  フォームが送信されたときの処理
 // -----------------------------------------------
 
@@ -355,6 +417,8 @@ form.addEventListener("submit", (event) => {
   });
 
   // 次の入力に備えて、日付以外の欄を空にする
+  barcodeInput.value = "";
+  barcodeStatus.textContent = "";
   foodSelect.value = "";
   foodInput.value = "";
   kcalInput.value = "";

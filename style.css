@@ -95,6 +95,18 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   color: #888;
 }
 
+/* バーコード検索の入力欄＋ボタンを横並びに */
+.barcode-row {
+  display: flex;
+  gap: 8px;
+}
+
+.barcode-row button {
+  width: auto;
+  flex-shrink: 0;
+  padding: 10px 16px;
+}
+
 button {
   font-size: 1rem;
   font-weight: 600;

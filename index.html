@@ -21,6 +21,15 @@
         <input type="date" id="date-input" required>
       </div>
       <div class="field">
+        <label for="barcode-input">バーコード番号で検索（商品の栄養を自動入力）</label>
+        <div class="barcode-row">
+          <input type="text" id="barcode-input" inputmode="numeric" placeholder="例: 4901234567890">
+          <button type="button" id="barcode-search">検索</button>
+        </div>
+        <p class="hint" id="barcode-status"></p>
+      </div>
+
+      <div class="field">
         <label for="food-select">食品を選ぶ（栄養を自動入力）</label>
         <select id="food-select">
           <option value="">— 一覧から選ぶ —</option>
