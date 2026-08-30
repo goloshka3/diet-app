@@ -566,16 +566,28 @@ function fillFromOpenFoodFacts(product) {
   const n = product.nutriments || {};
   const name = product.product_name_ja || product.product_name || "商品";
 
+  // 食塩相当量：salt が無ければ sodium(g) から換算（Na g × 2.54）
+  const salt = n.salt_100g != null
+    ? toNumber(n.salt_100g)
+    : toNumber(n.sodium_100g) * 2.54;
+
   foodInput.value = name + "（100gあたり）";
   applyNutrition({
     kcal: toNumber(n["energy-kcal_100g"]),
     protein: toNumber(n.proteins_100g),
     fat: toNumber(n.fat_100g),
+    satfat: toNumber(n["saturated-fat_100g"]),
     carb: toNumber(n.carbohydrates_100g),
+    sugar: toNumber(n.sugars_100g),
     fiber: toNumber(n.fiber_100g),
-    // 鉄・カルシウムは g 単位で返るので 1000倍して mg にする
-    iron: toNumber(n.iron_100g) * 1000,
+    salt: salt,
+    // ミネラルは g 単位で返るので 1000倍して mg にする
+    potassium: toNumber(n.potassium_100g) * 1000,
     calcium: toNumber(n.calcium_100g) * 1000,
+    magnesium: toNumber(n.magnesium_100g) * 1000,
+    iron: toNumber(n.iron_100g) * 1000,
+    zinc: toNumber(n.zinc_100g) * 1000,
+    vitC: toNumber(n["vitamin-c_100g"]) * 1000, // g→mg
   });
 
   foodSelect.value = ""; // 一覧の選択はクリア
@@ -702,21 +714,25 @@ function resizeImageToBase64(file, maxSize) {
 // 画像を Claude に送り、「表に印刷されたままの」数値を受け取る。
 //  換算はさせない（モデルは暗算が不正確なため）。
 async function readLabelWithClaude(base64, mediaType) {
+  // 読み取る栄養の一覧を NUTRIENTS から作る（項目を増やしてもここは自動で追従）
+  const fieldList = NUTRIENTS
+    .map((x) => "- " + x.key + ": " + x.label + "（" + x.unit + "）")
+    .join("\n");
+
+  const emptyJson = JSON.stringify(
+    NUTRIENTS.reduce((o, x) => { o[x.key] = null; return o; }, {})
+  );
+
   const prompt =
-    "この画像は食品の栄養成分表示です。表に印刷されている数値をそのまま読み取ってください。" +
-    "換算・推測・補完はしないこと。表に無い項目は null。\n\n" +
-    "読み取る項目:\n" +
+    "この画像は食品の栄養成分表示です。表に印刷されている数値をそのまま読み取ってください。\n" +
+    "・推測や補完はしない。表に無い項目は null。\n" +
+    "・単位は指定のもので。表が違う単位なら数値だけ合わせる（例: ナトリウムしか無ければ 食塩相当量 = ナトリウムmg × 2.54 ÷ 1000）。\n\n" +
+    "読み取る栄養（キー: 名称(単位)）:\n" + fieldList + "\n\n" +
+    "さらに:\n" +
     "- name: 商品名（画像内にあれば。無ければ空文字）\n" +
-    "- serving: 表が何あたりの値か、書かれている通りの文字列（例「100g当たり」「1袋(60g)当たり」「コップ1杯(200ml)当たり」）\n" +
-    "- kcal: エネルギー(kcal の数値)\n" +
-    "- protein: たんぱく質(g)\n" +
-    "- fat: 脂質(g)\n" +
-    "- carb: 炭水化物(無ければ糖質)(g)\n" +
-    "- fiber: 食物繊維(g)\n" +
-    "- iron: 鉄(mg)\n" +
-    "- calcium: カルシウム(mg)\n\n" +
+    "- serving: 表が何あたりの値か、書かれている通りの文字列（例「100g当たり」「1袋(60g)当たり」）\n\n" +
     "説明文なしで、次の形の JSON のみを返す:\n" +
-    '{"name":"","serving":"","kcal":null,"protein":null,"fat":null,"carb":null,"fiber":null,"iron":null,"calcium":null}';
+    '{"name":"","serving":"","nutrients":' + emptyJson + "}";
 
   const res = await fetch("https://api.anthropic.com/v1/messages", {
     method: "POST",
@@ -728,7 +744,7 @@ async function readLabelWithClaude(base64, mediaType) {
     },
     body: JSON.stringify({
       model: AI_MODEL,
-      max_tokens: 1024,
+      max_tokens: 2000,
       messages: [
         {
           role: "user",
@@ -762,7 +778,7 @@ function parseNutritionJson(text) {
 
 // Claude が読んだ栄養（表の値そのまま）を入力欄に反映する。
 //  換算はしない。null/空 は 0 にする。
-function fillFromAi(n) {
+function fillFromAi(result) {
   // "1,050" などの区切りを除いて数値化。数値でなければ 0。
   const num = (v) => {
     if (v === null || v === undefined || v === "") {
@@ -772,14 +788,18 @@ function fillFromAi(n) {
     return isNaN(x) ? 0 : roundNutrient(x);
   };
 
-  const label = [n.name, n.serving ? "（" + n.serving + "）" : ""].join("").trim();
+  const label = [result.name, result.serving ? "（" + result.serving + "）" : ""].join("").trim();
   if (label) {
     foodInput.value = label;
   }
-  applyNutrition({
-    kcal: num(n.kcal), protein: num(n.protein), fat: num(n.fat), carb: num(n.carb),
-    fiber: num(n.fiber), iron: num(n.iron), calcium: num(n.calcium),
-  });
+
+  // 新しい形 {nutrients:{...}}。古い形（直下にキー）にも一応対応。
+  const src = result.nutrients || result;
+  const values = {};
+  for (const key of NUTRIENT_KEYS) {
+    values[key] = num(src[key]);
+  }
+  applyNutrition(values);
   foodSelect.value = "";
 }
 
