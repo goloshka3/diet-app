@@ -137,6 +137,53 @@ button:active {
   color: #1b5e20;
 }
 
+/* 判定の基準（プロフィール）の説明 */
+.profile-note {
+  margin: 0 0 12px;
+  font-size: 0.8rem;
+  color: #888;
+}
+
+/* その日の合計 vs 目標 の判定 */
+.judge {
+  margin: 0 0 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.judge-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.8rem;
+}
+
+.judge-label {
+  width: 5em;
+  flex-shrink: 0;
+  color: #444;
+}
+
+.judge-value {
+  flex: 1;
+  color: #333;
+}
+
+.judge-mark {
+  flex-shrink: 0;
+  font-weight: 600;
+  font-size: 0.75rem;
+  padding: 1px 6px;
+  border-radius: 4px;
+  white-space: nowrap;
+}
+
+.judge-mark.ok { background: #e8f5e9; color: #1b5e20; }
+.judge-mark.soft { background: #fff8e1; color: #8d6e00; }
+.judge-mark.under { background: #ffebee; color: #c62828; }
+.judge-mark.over { background: #fff3e0; color: #e65100; }
+
 .entry {
   display: flex;
   justify-content: space-between;

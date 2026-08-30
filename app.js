@@ -36,6 +36,9 @@ const NUTRIENTS = [
   { key: "calcium", label: "カルシウム", unit: "mg" },
 ];
 
+// このうち「目標と比べて不足を判定する」項目（脂質・炭水化物以外）
+const JUDGED = ["kcal", "protein", "fiber", "iron", "calcium"];
+
 
 // 入力文字を数値にする。空欄や数字でないものは 0 として扱う。
 function toNumber(value) {
@@ -139,6 +142,15 @@ function render() {
   // 日付を新しい順に並べる
   const dates = Object.keys(byDate).sort().reverse();
 
+  // 何を基準に判定しているかの説明を先頭に出す
+  const note = document.createElement("p");
+  note.className = "profile-note";
+  note.textContent = "目標の基準： " + profileText(PROFILE);
+  logList.appendChild(note);
+
+  // その日の目標値（毎日同じなのでループの外で1回だけ取得）
+  const targets = getTargets(PROFILE);
+
   for (const date of dates) {
     // 日付の見出し
     const dayBox = document.createElement("div");
@@ -149,10 +161,15 @@ function render() {
     dayBox.appendChild(heading);
 
     // その日の合計
+    const total = sumNutrition(byDate[date]);
+
     const totalLine = document.createElement("p");
     totalLine.className = "day-total";
-    totalLine.textContent = "合計： " + formatNutrition(sumNutrition(byDate[date]));
+    totalLine.textContent = "合計： " + formatNutrition(total);
     dayBox.appendChild(totalLine);
+
+    // その日の合計 vs 目標 の判定
+    dayBox.appendChild(buildJudgement(total, targets));
 
     // その日の記録を1件ずつ
     for (const entry of byDate[date]) {
@@ -192,6 +209,55 @@ function formatNutrition(entry) {
   return NUTRIENTS
     .map((n) => `${n.label} ${roundNutrient(toNumber(entry[n.key]))}${n.unit}`)
     .join(" ・ ");
+}
+
+// その日の合計(total)と目標(targets)を比べて、判定の表示部品を作る。
+function buildJudgement(total, targets) {
+  const box = document.createElement("div");
+  box.className = "judge";
+
+  for (const key of JUDGED) {
+    const info = NUTRIENTS.find((n) => n.key === key); // ラベルと単位を取り出す
+    const got = roundNutrient(toNumber(total[key]));
+    const goal = targets[key];
+    const percent = goal > 0 ? Math.round((got / goal) * 100) : 0;
+    const status = judgeStatus(key, percent);
+
+    const row = document.createElement("div");
+    row.className = "judge-row";
+
+    const label = document.createElement("span");
+    label.className = "judge-label";
+    label.textContent = info.label;
+
+    const value = document.createElement("span");
+    value.className = "judge-value";
+    value.textContent = `${got} / ${goal}${info.unit}（${percent}%）`;
+
+    const mark = document.createElement("span");
+    mark.className = "judge-mark " + status.className;
+    mark.textContent = status.text;
+
+    row.appendChild(label);
+    row.appendChild(value);
+    row.appendChild(mark);
+    box.appendChild(row);
+  }
+
+  return box;
+}
+
+// 達成率(%)から「不足」「もう少し」「達成」などの判定を返す。
+function judgeStatus(key, percent) {
+  // カロリーは「不足」ではなく多い/少ないで見る（ダイエット中は少なめが目的のこともある）
+  if (key === "kcal") {
+    if (percent > 110) return { text: "多め", className: "over" };
+    if (percent < 90) return { text: "少なめ", className: "soft" };
+    return { text: "適正", className: "ok" };
+  }
+  if (percent >= 100) return { text: "達成", className: "ok" };
+  if (percent >= 70) return { text: "もう少し", className: "soft" };
+  return { text: "不足", className: "under" };
 }
 
 // "2026-08-29" → "2026年8月29日（金）" のように読みやすくする
