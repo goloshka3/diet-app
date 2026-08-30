@@ -817,15 +817,20 @@ async function requestDayEvaluation(dateStr, entries) {
   }
 
   const data = await res.json();
-  console.log("Claude評価レスポンス:", data); // 原因調査用（stop_reason / usage を確認）
+  console.log("Claude評価レスポンス:", data); // 原因調査用
   const text = (data.content || []).map((block) => block.text || "").join("").trim();
+
+  // 原因調査用に、応答の内訳を末尾に付ける（後で消す）
+  const u = data.usage || {};
+  const debug = "\n\n———\n[調査用] stop_reason=" + (data.stop_reason || "?") +
+    " / 入力=" + (u.input_tokens || "?") +
+    " / 出力=" + (u.output_tokens || "?") +
+    (u.thinking_tokens != null ? " / 思考=" + u.thinking_tokens : "");
+
   if (!text) {
-    throw new Error("空の返答でした（stop_reason: " + (data.stop_reason || "不明") + "）");
+    return "（本文が空でした）" + debug;
   }
-  if (data.stop_reason === "max_tokens") {
-    return text + "\n\n（※ 長すぎて途中で切れました）";
-  }
-  return text;
+  return text + debug;
 }
 
 
