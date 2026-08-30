@@ -70,6 +70,9 @@
       <button type="button" id="api-key-save">保存</button>
       <p class="hint" id="api-key-status"></p>
 
+      <h3 class="settings-h">登録した食品</h3>
+      <div id="my-foods-list"></div>
+
       <h3 class="settings-h">データのバックアップ</h3>
       <p class="hint">
         記録をファイルに書き出し／読み込みできます。Safari のデータ消去で記録が
@@ -126,6 +129,9 @@
       </details>
 
       <p class="hint">栄養は分かる範囲でOK。空欄は 0 として扱います。</p>
+
+      <button type="button" id="save-food-btn" class="scan-open-btn">この内容を食品リストに登録</button>
+      <p class="hint" id="save-food-status"></p>
 
       <button type="submit">追加する</button>
     </form>

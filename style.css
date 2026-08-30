@@ -57,6 +57,27 @@ header h1 {
   padding-top: 4px;
 }
 
+/* 登録した食品の一覧（設定内） */
+.myfood-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.85rem;
+  padding: 6px 0;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.myfood-row .delete {
+  width: auto;
+  margin-top: 0;
+  background: none;
+  color: #c62828;
+  font-size: 0.8rem;
+  padding: 2px 8px;
+  flex-shrink: 0;
+}
+
 .settings .field,
 .settings .hint,
 .settings button {

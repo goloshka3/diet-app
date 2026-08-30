@@ -41,6 +41,9 @@ const aiPhotoInput = document.getElementById("ai-photo");
 const foodSelect = document.getElementById("food-select");
 const foodInput = document.getElementById("food-input");
 const amountInput = document.getElementById("amount-input");
+const saveFoodBtn = document.getElementById("save-food-btn");
+const saveFoodStatus = document.getElementById("save-food-status");
+const myFoodsList = document.getElementById("my-foods-list");
 const logList = document.getElementById("log-list");
 
 // 栄養の項目一覧。key=保存名、basic:true は常に表示、それ以外は「詳細」を開くと表示。
@@ -380,27 +383,127 @@ function formatDate(dateStr) {
 //  食品一覧（ドロップダウン）
 // -----------------------------------------------
 
-// foods.js の FOODS から <option> を作って select に入れる。
-function buildFoodOptions() {
-  FOODS.forEach((food, index) => {
-    const option = document.createElement("option");
-    option.value = index;          // 何番目の食品かを値にする
-    option.textContent = food.name;
-    foodSelect.appendChild(option);
-  });
+const MY_FOODS_STORAGE = "diet-app-my-foods"; // 自分で登録した食品
+
+// 登録した食品を読む。
+function loadMyFoods() {
+  try {
+    const arr = JSON.parse(localStorage.getItem(MY_FOODS_STORAGE) || "[]");
+    return Array.isArray(arr) ? arr : [];
+  } catch (e) {
+    return [];
+  }
 }
 
-// 食品が選ばれたら、名前と栄養7項目を入力欄に写す。
+function saveMyFoods(arr) {
+  localStorage.setItem(MY_FOODS_STORAGE, JSON.stringify(arr));
+}
+
+// 内蔵 FOODS ＋ 登録食品 を1つの配列にまとめたもの（選択の値＝この配列の添字）
+let combinedFoods = [];
+
+// ドロップダウンを組み立て直す。
+function buildFoodOptions() {
+  foodSelect.innerHTML = '<option value="">— 一覧から選ぶ —</option>';
+  combinedFoods = [];
+
+  FOODS.forEach((food) => {
+    combinedFoods.push(food);
+    foodSelect.appendChild(makeFoodOption(food, combinedFoods.length - 1));
+  });
+
+  const myFoods = loadMyFoods();
+  if (myFoods.length > 0) {
+    const group = document.createElement("optgroup");
+    group.label = "登録した食品";
+    myFoods.forEach((food) => {
+      combinedFoods.push(food);
+      group.appendChild(makeFoodOption(food, combinedFoods.length - 1));
+    });
+    foodSelect.appendChild(group);
+  }
+}
+
+function makeFoodOption(food, index) {
+  const option = document.createElement("option");
+  option.value = index;
+  option.textContent = food.name;
+  return option;
+}
+
+// 食品が選ばれたら、名前と栄養を入力欄に写す。
 foodSelect.addEventListener("change", () => {
   const index = foodSelect.value;
   if (index === "") {
     return; // 「— 一覧から選ぶ —」に戻したときは何もしない
   }
 
-  const food = FOODS[index];
+  const food = combinedFoods[index];
   foodInput.value = food.name;
   applyNutrition(food); // food は kcal/protein/... を持つ
 });
+
+// いま入力欄にある内容（1つ分の栄養）を食品リストに登録する。
+saveFoodBtn.addEventListener("click", () => {
+  const name = foodInput.value.replace(/\s*×[\d.]+\s*$/, "").trim();
+  if (!name) {
+    saveFoodStatus.textContent = "「食べたもの」に名前を入れてください。";
+    return;
+  }
+
+  const food = { name: name };
+  for (const key of NUTRIENT_KEYS) {
+    food[key] = roundNutrient(baseNutrition[key]); // 量の倍率を除いた1つ分の値
+  }
+
+  const myFoods = loadMyFoods();
+  const i = myFoods.findIndex((f) => f.name === name);
+  if (i >= 0) {
+    myFoods[i] = food; // 同じ名前があれば上書き
+    saveFoodStatus.textContent = "「" + name + "」を更新しました。";
+  } else {
+    myFoods.push(food);
+    saveFoodStatus.textContent = "「" + name + "」を食品リストに登録しました。";
+  }
+  saveMyFoods(myFoods);
+  buildFoodOptions();
+  renderMyFoodsList();
+});
+
+// ⚙️設定 の「登録した食品」一覧（削除ボタンつき）を作る。
+function renderMyFoodsList() {
+  const myFoods = loadMyFoods();
+  myFoodsList.innerHTML = "";
+
+  if (myFoods.length === 0) {
+    myFoodsList.innerHTML = '<p class="hint">まだありません。入力欄を埋めて「食品リストに登録」で追加できます。</p>';
+    return;
+  }
+
+  myFoods.forEach((food, index) => {
+    const row = document.createElement("div");
+    row.className = "myfood-row";
+
+    const name = document.createElement("span");
+    name.textContent = food.name;
+
+    const del = document.createElement("button");
+    del.type = "button";
+    del.className = "delete";
+    del.textContent = "削除";
+    del.addEventListener("click", () => {
+      const arr = loadMyFoods();
+      arr.splice(index, 1);
+      saveMyFoods(arr);
+      buildFoodOptions();
+      renderMyFoodsList();
+    });
+
+    row.appendChild(name);
+    row.appendChild(del);
+    myFoodsList.appendChild(row);
+  });
+}
 
 
 // -----------------------------------------------
@@ -546,6 +649,7 @@ exportBtn.addEventListener("click", () => {
     exportedAt: new Date().toISOString(),
     entries: loadEntries(),
     profile: loadProfile(),
+    myFoods: loadMyFoods(),
   };
   const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
   const url = URL.createObjectURL(blob);
@@ -594,6 +698,11 @@ importFile.addEventListener("change", () => {
       if (data && data.profile) {
         saveProfile(Object.assign({}, DEFAULT_PROFILE, data.profile));
         fillProfileForm();
+      }
+      if (data && Array.isArray(data.myFoods)) {
+        saveMyFoods(data.myFoods);
+        buildFoodOptions();
+        renderMyFoodsList();
       }
       render();
       backupStatus.textContent = entries.length + "件を読み込みました。";
@@ -982,8 +1091,9 @@ attachNutrientInputListeners();
 // 日付欄の初期値を「今日」にする
 dateInput.value = new Date().toISOString().slice(0, 10);
 
-// 食品一覧のドロップダウンを組み立てる
+// 食品一覧のドロップダウンと、登録食品リストを組み立てる
 buildFoodOptions();
+renderMyFoodsList();
 
 // 最初の一覧を表示する
 render();
