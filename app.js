@@ -342,12 +342,14 @@ function buildDayBox(date, dayEntries, targets, todayStr) {
   heading.textContent = formatDate(date) + "　" + kcal + "kcal・" + dayEntries.length + "品";
   dayBox.appendChild(heading);
 
-  const totalLine = document.createElement("p");
-  totalLine.className = "day-total";
-  totalLine.textContent = "合計： " + formatNutrition(total);
-  dayBox.appendChild(totalLine);
-
   dayBox.appendChild(buildJudgement(total, targets));
+
+  // 棒グラフに出ない栄養（脂質・炭水化物・糖質）だけ小さく添える
+  const macros = document.createElement("p");
+  macros.className = "day-macros";
+  macros.textContent = "脂質 " + roundNutrient(toNumber(total.fat)) + "g ・ 炭水化物 " +
+    roundNutrient(toNumber(total.carb)) + "g ・ 糖質 " + roundNutrient(toNumber(total.sugar)) + "g";
+  dayBox.appendChild(macros);
 
   for (const entry of dayEntries) {
     const row = document.createElement("div");
@@ -388,66 +390,94 @@ function formatNutrition(entry) {
 }
 
 // その日の合計(total)と目標(targets)を比べて、判定の表示部品を作る。
+//  目標を外している項目だけ棒グラフで大きく出し、達成した項目は1行にまとめる。
 function buildJudgement(total, targets) {
   const box = document.createElement("div");
   box.className = "judge";
 
+  const attention = []; // 目標を外している項目
+  const okNames = [];    // 目標クリアの項目名
+
   for (const key of JUDGED) {
-    const info = NUTRIENTS.find((n) => n.key === key); // ラベルと単位を取り出す
+    const info = NUTRIENTS.find((n) => n.key === key);
     const got = roundNutrient(toNumber(total[key]));
     const goal = targets[key];
     const percent = goal > 0 ? Math.round((got / goal) * 100) : 0;
     const status = judgeStatus(key, percent);
 
-    const row = document.createElement("div");
-    row.className = "judge-row";
-
-    // 1行目：ラベル・数値・判定ラベル
-    const head = document.createElement("div");
-    head.className = "judge-head";
-
-    const label = document.createElement("span");
-    label.className = "judge-label";
-    label.textContent = info.label;
-
-    const value = document.createElement("span");
-    value.className = "judge-value";
-    value.textContent = `${got} / ${goal}${info.unit}（${percent}%）`;
-
-    const mark = document.createElement("span");
-    mark.className = "judge-mark " + status.className;
-    mark.textContent = status.text;
-
-    head.appendChild(label);
-    head.appendChild(value);
-    head.appendChild(mark);
-
-    // 2行目：棒グラフ（バーの幅 = 達成率。ただし見た目は100%で頭打ち）
-    const bar = document.createElement("div");
-    bar.className = "judge-bar";
-
-    const fill = document.createElement("div");
-    fill.className = "judge-bar-fill " + status.className;
-    fill.style.width = Math.min(percent, 100) + "%";
-
-    bar.appendChild(fill);
-
-    row.appendChild(head);
-    row.appendChild(bar);
-
-    // 「不足」のときは、補う食材の候補を出す（ステージ3）
-    if (status.className === "under" && RICH_FOODS[key]) {
-      const suggest = document.createElement("div");
-      suggest.className = "judge-suggest";
-      const foods = RICH_FOODS[key].slice(0, 4).join(" ・ "); // 先頭4つ
-      suggest.textContent = "補う食材: " + foods;
-      row.appendChild(suggest);
+    if (status.className === "ok") {
+      okNames.push(info.label);
+    } else {
+      attention.push({ key, info, got, goal, percent, status });
     }
+  }
 
-    box.appendChild(row);
+  // 重い順に並べる（不足・とりすぎ → もう少し）
+  const severity = { under: 0, over: 0, soft: 1 };
+  attention.sort((a, b) => severity[a.status.className] - severity[b.status.className]);
+
+  for (const item of attention) {
+    box.appendChild(buildJudgeRow(item));
+  }
+
+  const okLine = document.createElement("p");
+  okLine.className = "judge-ok";
+  if (okNames.length === 0) {
+    okLine.textContent = "";
+  } else if (attention.length === 0) {
+    okLine.textContent = "✓ すべての項目が目標をクリア";
+  } else {
+    okLine.textContent = "✓ 目標クリア（" + okNames.length + "）: " + okNames.join("・");
+  }
+  if (okLine.textContent) {
+    box.appendChild(okLine);
   }
 
   return box;
+}
+
+// 判定1項目（棒グラフつき）の部品。
+function buildJudgeRow(item) {
+  const row = document.createElement("div");
+  row.className = "judge-row";
+
+  const head = document.createElement("div");
+  head.className = "judge-head";
+
+  const label = document.createElement("span");
+  label.className = "judge-label";
+  label.textContent = item.info.label;
+
+  const num = document.createElement("span");
+  num.className = "judge-num";
+  num.textContent = item.percent + "%　" + item.got + "/" + item.goal + item.info.unit;
+
+  const mark = document.createElement("span");
+  mark.className = "judge-mark " + item.status.className;
+  mark.textContent = item.status.text;
+
+  head.appendChild(label);
+  head.appendChild(num);
+  head.appendChild(mark);
+
+  const bar = document.createElement("div");
+  bar.className = "judge-bar";
+  const fill = document.createElement("div");
+  fill.className = "judge-bar-fill " + item.status.className;
+  fill.style.width = Math.min(item.percent, 100) + "%";
+  bar.appendChild(fill);
+
+  row.appendChild(head);
+  row.appendChild(bar);
+
+  if (item.status.className === "under" && RICH_FOODS[item.key]) {
+    const suggest = document.createElement("div");
+    suggest.className = "judge-suggest";
+    suggest.textContent = "補う食材: " + RICH_FOODS[item.key].slice(0, 4).join(" ・ ");
+    row.appendChild(suggest);
+  }
+
+  return row;
 }
 
 // 達成率(%)から「不足」「もう少し」「達成」などの判定を返す。
