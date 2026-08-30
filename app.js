@@ -29,6 +29,10 @@ const pfKcal = document.getElementById("pf-kcal");
 const pfProtein = document.getElementById("pf-protein");
 const pfSaveBtn = document.getElementById("pf-save");
 const pfStatus = document.getElementById("pf-status");
+const exportBtn = document.getElementById("export-btn");
+const importBtn = document.getElementById("import-btn");
+const importFile = document.getElementById("import-file");
+const backupStatus = document.getElementById("backup-status");
 const scanOpenBtn = document.getElementById("scan-open");
 const scanCloseBtn = document.getElementById("scan-close");
 const scannerOverlay = document.getElementById("scanner-overlay");
@@ -528,6 +532,78 @@ pfSaveBtn.addEventListener("click", () => {
 });
 
 fillProfileForm();
+
+
+// -----------------------------------------------
+//  データのバックアップ（エクスポート／インポート）
+// -----------------------------------------------
+
+// 記録＋設定を JSON ファイルとして書き出す。
+exportBtn.addEventListener("click", () => {
+  const data = {
+    app: "diet-app",
+    version: 1,
+    exportedAt: new Date().toISOString(),
+    entries: loadEntries(),
+    profile: loadProfile(),
+  };
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "diet-app-backup-" + new Date().toISOString().slice(0, 10) + ".json";
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+
+  backupStatus.textContent = loadEntries().length + "件の記録を書き出しました。";
+});
+
+// ファイルを選んで記録を読み込む（今の記録は置き換え）。
+importBtn.addEventListener("click", () => importFile.click());
+
+importFile.addEventListener("change", () => {
+  const file = importFile.files[0];
+  importFile.value = ""; // 同じファイルを選び直せるように
+  if (!file) {
+    return;
+  }
+
+  const reader = new FileReader();
+  reader.onload = () => {
+    try {
+      const data = JSON.parse(reader.result);
+      // 新形式 {entries:[...]} でも、古い配列だけでも受け付ける
+      const entries = Array.isArray(data) ? data : data.entries;
+      if (!Array.isArray(entries)) {
+        throw new Error("記録のデータが見つかりません");
+      }
+
+      const ok = confirm(
+        "今の記録（" + loadEntries().length + "件）を、読み込んだ " +
+        entries.length + "件で置き換えます。よろしいですか？"
+      );
+      if (!ok) {
+        backupStatus.textContent = "読み込みを中止しました。";
+        return;
+      }
+
+      saveEntries(entries);
+      if (data && data.profile) {
+        saveProfile(Object.assign({}, DEFAULT_PROFILE, data.profile));
+        fillProfileForm();
+      }
+      render();
+      backupStatus.textContent = entries.length + "件を読み込みました。";
+    } catch (e) {
+      console.error(e);
+      backupStatus.textContent = "読み込めませんでした: " + e.message;
+    }
+  };
+  reader.readAsText(file);
+});
 
 
 // -----------------------------------------------

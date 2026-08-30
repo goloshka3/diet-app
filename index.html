@@ -69,6 +69,16 @@
       </p>
       <button type="button" id="api-key-save">保存</button>
       <p class="hint" id="api-key-status"></p>
+
+      <h3 class="settings-h">データのバックアップ</h3>
+      <p class="hint">
+        記録をファイルに書き出し／読み込みできます。Safari のデータ消去で記録が
+        消えることがあるので、ときどき書き出しておくと安心です。
+      </p>
+      <button type="button" id="export-btn">書き出す（エクスポート）</button>
+      <button type="button" id="import-btn">読み込む（インポート）</button>
+      <input type="file" id="import-file" accept="application/json,.json" hidden>
+      <p class="hint" id="backup-status"></p>
     </details>
 
     <!-- 入力フォーム -->
