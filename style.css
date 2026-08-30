@@ -154,9 +154,15 @@ button:active {
 
 .judge-row {
   display: flex;
+  flex-direction: column;
+  gap: 3px;
+  font-size: 0.8rem;
+}
+
+.judge-head {
+  display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 0.8rem;
 }
 
 .judge-label {
@@ -183,6 +189,24 @@ button:active {
 .judge-mark.soft { background: #fff8e1; color: #8d6e00; }
 .judge-mark.under { background: #ffebee; color: #c62828; }
 .judge-mark.over { background: #fff3e0; color: #e65100; }
+
+/* 棒グラフ */
+.judge-bar {
+  height: 6px;
+  background: #eee;
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.judge-bar-fill {
+  height: 100%;
+  border-radius: 3px;
+}
+
+.judge-bar-fill.ok { background: #43a047; }
+.judge-bar-fill.soft { background: #f9a825; }
+.judge-bar-fill.under { background: #e53935; }
+.judge-bar-fill.over { background: #fb8c00; }
 
 .entry {
   display: flex;

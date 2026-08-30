@@ -226,6 +226,10 @@ function buildJudgement(total, targets) {
     const row = document.createElement("div");
     row.className = "judge-row";
 
+    // 1行目：ラベル・数値・判定ラベル
+    const head = document.createElement("div");
+    head.className = "judge-head";
+
     const label = document.createElement("span");
     label.className = "judge-label";
     label.textContent = info.label;
@@ -238,9 +242,22 @@ function buildJudgement(total, targets) {
     mark.className = "judge-mark " + status.className;
     mark.textContent = status.text;
 
-    row.appendChild(label);
-    row.appendChild(value);
-    row.appendChild(mark);
+    head.appendChild(label);
+    head.appendChild(value);
+    head.appendChild(mark);
+
+    // 2行目：棒グラフ（バーの幅 = 達成率。ただし見た目は100%で頭打ち）
+    const bar = document.createElement("div");
+    bar.className = "judge-bar";
+
+    const fill = document.createElement("div");
+    fill.className = "judge-bar-fill " + status.className;
+    fill.style.width = Math.min(percent, 100) + "%";
+
+    bar.appendChild(fill);
+
+    row.appendChild(head);
+    row.appendChild(bar);
     box.appendChild(row);
   }
 
