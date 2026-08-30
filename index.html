@@ -10,7 +10,7 @@
 <body>
   <header>
     <h1>🍽️ 食事記録</h1>
-    <p class="sub">ステージ0：食べたものを記録する</p>
+    <p class="sub">食べたものを記録して、栄養の合計・不足を確認する</p>
   </header>
 
   <main>
@@ -26,6 +26,7 @@
           <input type="text" id="barcode-input" inputmode="numeric" placeholder="例: 4901234567890">
           <button type="button" id="barcode-search">検索</button>
         </div>
+        <button type="button" id="scan-open" class="scan-open-btn">📷 カメラで読み取る</button>
         <p class="hint" id="barcode-status"></p>
       </div>
 
@@ -82,6 +83,17 @@
     <!-- 記録の一覧。中身は app.js が作って差し込む -->
     <section id="log-list"></section>
   </main>
+
+  <!-- カメラ映像を出すための全画面オーバーレイ（ふだんは hidden で非表示） -->
+  <div id="scanner-overlay" hidden>
+    <div class="scanner-box">
+      <div id="scanner-view"></div>
+      <button type="button" id="scan-close">閉じる</button>
+    </div>
+  </div>
+
+  <!-- バーコード読み取りライブラリ（外部・CDNから1ファイル読み込み） -->
+  <script src="https://cdn.jsdelivr.net/npm/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
 
   <!-- データの定義ファイルを先に読み込む（app.js がこれらの中身を使うため） -->
   <script src="foods.js"></script>

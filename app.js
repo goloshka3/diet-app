@@ -14,6 +14,9 @@ const dateInput = document.getElementById("date-input");
 const barcodeInput = document.getElementById("barcode-input");
 const barcodeSearchBtn = document.getElementById("barcode-search");
 const barcodeStatus = document.getElementById("barcode-status");
+const scanOpenBtn = document.getElementById("scan-open");
+const scanCloseBtn = document.getElementById("scan-close");
+const scannerOverlay = document.getElementById("scanner-overlay");
 const foodSelect = document.getElementById("food-select");
 const foodInput = document.getElementById("food-input");
 const logList = document.getElementById("log-list");
@@ -387,6 +390,52 @@ function fillFromOpenFoodFacts(product) {
   calciumInput.value = roundNutrient(toNumber(n.calcium_100g) * 1000);
 
   foodSelect.value = ""; // 一覧の選択はクリア
+}
+
+
+// -----------------------------------------------
+//  カメラでバーコードを読み取る（html5-qrcode）
+// -----------------------------------------------
+
+let scanner = null; // 起動中のカメラ。閉じるときに止めるため覚えておく
+
+scanOpenBtn.addEventListener("click", openScanner);
+scanCloseBtn.addEventListener("click", closeScanner);
+
+async function openScanner() {
+  scannerOverlay.hidden = false;
+  scanner = new Html5Qrcode("scanner-view");
+
+  try {
+    await scanner.start(
+      { facingMode: "environment" }, // 背面カメラを使う
+      { fps: 10, qrbox: { width: 260, height: 160 } }, // 読み取り枠（横長）
+      (decodedText) => {
+        // 読み取り成功：番号を入力欄に入れて、カメラを閉じて検索
+        barcodeInput.value = decodedText;
+        closeScanner();
+        searchByBarcode();
+      },
+      () => {} // 1フレームごとの「まだ読めない」通知は無視
+    );
+  } catch (e) {
+    console.error(e);
+    barcodeStatus.textContent = "カメラを起動できませんでした。ブラウザのカメラ許可を確認してください。";
+    closeScanner();
+  }
+}
+
+async function closeScanner() {
+  if (scanner) {
+    try {
+      await scanner.stop(); // カメラを止める
+      scanner.clear();
+    } catch (e) {
+      // すでに止まっている場合など。無視してよい
+    }
+    scanner = null;
+  }
+  scannerOverlay.hidden = true;
 }
 
 
