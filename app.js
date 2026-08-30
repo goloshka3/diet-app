@@ -188,6 +188,9 @@ function render() {
     // その日の合計 vs 目標 の判定
     dayBox.appendChild(buildJudgement(total, targets));
 
+    // その日を AI（Claude）で評価するボタンと結果欄
+    dayBox.appendChild(buildDayAi(date, byDate[date]));
+
     // その日の記録を1件ずつ
     for (const entry of byDate[date]) {
       const row = document.createElement("div");
@@ -729,6 +732,90 @@ function fillFromAi(n) {
     fiber: num(n.fiber), iron: num(n.iron), calcium: num(n.calcium),
   });
   foodSelect.value = "";
+}
+
+
+// -----------------------------------------------
+//  その日を AI（Claude）で評価する
+// -----------------------------------------------
+//  記録に無いビタミン類などは、食品名から Claude に推定させる。
+//  画像なし・文字だけなので 1回 数円。
+
+// ボタンと結果欄の部品を作る。
+function buildDayAi(dateStr, entries) {
+  const box = document.createElement("div");
+  box.className = "day-ai";
+
+  const btn = document.createElement("button");
+  btn.type = "button";
+  btn.className = "day-ai-btn";
+  btn.textContent = "🧠 この日をAIで評価";
+
+  const result = document.createElement("div");
+  result.className = "day-ai-result";
+
+  btn.addEventListener("click", async () => {
+    if (!loadApiKey()) {
+      result.textContent = "先に「⚙️ 設定」で Claude API キーを保存してください。";
+      return;
+    }
+    btn.disabled = true;
+    result.textContent = "Claude が評価中…（10〜30秒）";
+    try {
+      result.textContent = await requestDayEvaluation(dateStr, entries);
+    } catch (e) {
+      console.error(e);
+      result.textContent = "評価に失敗しました: " + e.message;
+    } finally {
+      btn.disabled = false;
+    }
+  });
+
+  box.appendChild(btn);
+  box.appendChild(result);
+  return box;
+}
+
+// その日の食事を文章にまとめて Claude に送り、評価テキストを受け取る。
+async function requestDayEvaluation(dateStr, entries) {
+  const lines = entries.map((entry) => {
+    const parts = NUTRIENTS
+      .filter((n) => toNumber(entry[n.key]) > 0)
+      .map((n) => n.label + roundNutrient(toNumber(entry[n.key])) + n.unit);
+    return "- " + entry.food + (parts.length ? "（" + parts.join("、") + "）" : "");
+  }).join("\n");
+
+  const prompt =
+    profileText(PROFILE) + " の人の、" + formatDate(dateStr) + " の1日の食事です。\n\n" +
+    lines + "\n\n" +
+    "この食事内容から、1日の栄養バランスを評価してください。\n" +
+    "- 記録に数値が無い栄養（食塩相当量・ビタミンA/C/D・ビタミンB群・亜鉛・オメガ3 など）も、食品名から推定してよい\n" +
+    "- 日本人の食事摂取基準（2025年版）の目安と比べ、不足・過剰を具体的に指摘する\n" +
+    "- 最後に「明日の改善ポイント」を2〜3個、具体的な食材名で\n" +
+    "見出しと箇条書きの文章で答えること。markdown の表は使わない。";
+
+  const res = await fetch("https://api.anthropic.com/v1/messages", {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      "x-api-key": loadApiKey(),
+      "anthropic-version": "2023-06-01",
+      "anthropic-dangerous-direct-browser-access": "true",
+    },
+    body: JSON.stringify({
+      model: AI_MODEL,
+      max_tokens: 1500,
+      messages: [{ role: "user", content: prompt }],
+    }),
+  });
+
+  if (!res.ok) {
+    const body = await res.text();
+    throw new Error("APIエラー " + res.status + "（" + body.slice(0, 150) + "）");
+  }
+
+  const data = await res.json();
+  return (data.content || []).map((block) => block.text || "").join("").trim();
 }
 
 
