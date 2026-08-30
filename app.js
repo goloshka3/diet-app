@@ -494,7 +494,26 @@ function fillProfileForm() {
   pfActivity.value = p.activity;
   pfKcal.value = p.kcalTarget > 0 ? p.kcalTarget : "";
   pfProtein.value = p.proteinTarget > 0 ? p.proteinTarget : "";
+  updateAutoPlaceholders();
 }
+
+// 目標欄が空のときに表示する「自動だとこの値」をプレースホルダーに出す。
+function updateAutoPlaceholders() {
+  const auto = getTargets({
+    sex: pfSex.value,
+    ageBand: pfAge.value,
+    activity: pfActivity.value,
+    kcalTarget: 0,
+    proteinTarget: 0,
+  });
+  pfKcal.placeholder = "自動: " + auto.kcal;
+  pfProtein.placeholder = "自動: " + auto.protein;
+}
+
+// 性別・年齢・活動レベルを変えたら、自動値の表示を更新
+[pfSex, pfAge, pfActivity].forEach((el) => {
+  el.addEventListener("change", updateAutoPlaceholders);
+});
 
 pfSaveBtn.addEventListener("click", () => {
   saveProfile({
