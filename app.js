@@ -585,9 +585,12 @@ async function closeScanner() {
 //  サーバーを持たないので、ブラウザから直接 api.anthropic.com を呼ぶ。
 //  そのために "anthropic-dangerous-direct-browser-access" ヘッダを付ける。
 
-// 使うモデル。成分表の読み取り精度を優先して sonnet を使う（1回 約1円）。
-//  もっと安く・速くしたいときは "claude-haiku-4-5"（精度は落ちる）に変える。
+// 成分表の画像読み取り用。精度優先で sonnet（1回 約1円）。
 const AI_MODEL = "claude-sonnet-5";
+
+// その日の栄養チェック用。文字だけの推定計算なので、思考オフで速い haiku を使う。
+//  （sonnet だと"思考"にトークンを使い、返答が途中で切れる問題があった）
+const AI_MODEL_TEXT = "claude-haiku-4-5";
 
 aiReadBtn.addEventListener("click", () => {
   if (!loadApiKey()) {
@@ -749,7 +752,7 @@ function buildDayAi(dateStr, entries) {
   const btn = document.createElement("button");
   btn.type = "button";
   btn.className = "day-ai-btn";
-  btn.textContent = "🧠 この日をAIで評価";
+  btn.textContent = "🧠 この日をAIで栄養チェック";
 
   const result = document.createElement("div");
   result.className = "day-ai-result";
@@ -760,12 +763,13 @@ function buildDayAi(dateStr, entries) {
       return;
     }
     btn.disabled = true;
-    result.textContent = "Claude が評価中…（10〜30秒）";
+    result.textContent = "Claude が計算中…（10〜20秒）";
     try {
-      result.textContent = await requestDayEvaluation(dateStr, entries);
+      const data = await requestDayAnalysis(dateStr, entries);
+      renderAnalysis(data, result);
     } catch (e) {
       console.error(e);
-      result.textContent = "評価に失敗しました: " + e.message;
+      result.textContent = "失敗しました: " + e.message;
     } finally {
       btn.disabled = false;
     }
@@ -776,8 +780,13 @@ function buildDayAi(dateStr, entries) {
   return box;
 }
 
-// その日の食事を文章にまとめて Claude に送り、評価テキストを受け取る。
-async function requestDayEvaluation(dateStr, entries) {
+// AIに推定させたい栄養の一覧（記録に無いものも Claude が食品名から推定）
+const ANALYSIS_NUTRIENTS =
+  "エネルギー,たんぱく質,脂質,炭水化物,食物繊維,食塩相当量,カルシウム,鉄,亜鉛," +
+  "マグネシウム,ビタミンA,ビタミンD,ビタミンB1,ビタミンB2,ビタミンB6,ビタミンB12,葉酸,ビタミンC";
+
+// その日の食事を Claude に送り、栄養ごとの摂取量・目安量・達成率(JSON)を受け取る。
+async function requestDayAnalysis(dateStr, entries) {
   const lines = entries.map((entry) => {
     const parts = NUTRIENTS
       .filter((n) => toNumber(entry[n.key]) > 0)
@@ -788,11 +797,13 @@ async function requestDayEvaluation(dateStr, entries) {
   const prompt =
     profileText(PROFILE) + " の人の、" + formatDate(dateStr) + " の1日の食事です。\n\n" +
     lines + "\n\n" +
-    "この食事内容から、1日の栄養バランスを評価してください。\n" +
-    "- 記録に数値が無い栄養（食塩相当量・ビタミンA/C/D・ビタミンB群・亜鉛・オメガ3 など）も、食品名から推定してよい\n" +
-    "- 日本人の食事摂取基準（2025年版）の目安と比べ、不足・過剰を具体的に指摘する\n" +
-    "- 最後に「明日の改善ポイント」を2〜3個、具体的な食材名で\n" +
-    "見出しと箇条書きの文章で答えること。markdown の表は使わない。";
+    "各栄養について、この食事からの推定摂取量と、日本人の食事摂取基準（2025年版）での" +
+    "この人の1日の目安量を出し、達成率(%)を計算してください。\n" +
+    "記録に数値がある栄養はその値を使い、無い栄養は食品名から推定してください。\n" +
+    "対象の栄養: " + ANALYSIS_NUTRIENTS + "\n\n" +
+    "説明文は書かず、次の形の JSON のみを返してください:\n" +
+    '{"items":[{"name":"エネルギー","intake":0,"target":0,"unit":"kcal","percent":0,"overBad":false}]}\n' +
+    "overBad は「多すぎるのが良くない栄養」（食塩相当量・脂質・エネルギーの取り過ぎ等）なら true。";
 
   const res = await fetch("https://api.anthropic.com/v1/messages", {
     method: "POST",
@@ -803,8 +814,8 @@ async function requestDayEvaluation(dateStr, entries) {
       "anthropic-dangerous-direct-browser-access": "true",
     },
     body: JSON.stringify({
-      model: AI_MODEL,
-      max_tokens: 8000,
+      model: AI_MODEL_TEXT,
+      max_tokens: 4000,
       messages: [{ role: "user", content: prompt }],
     }),
   });
@@ -815,20 +826,73 @@ async function requestDayEvaluation(dateStr, entries) {
   }
 
   const data = await res.json();
-  console.log("Claude評価レスポンス:", data); // 原因調査用
-  const text = (data.content || []).map((block) => block.text || "").join("").trim();
+  const text = (data.content || []).map((block) => block.text || "").join("");
+  return parseNutritionJson(text); // { items: [...] }
+}
 
-  // 原因調査用に、応答の内訳を末尾に付ける（後で消す）
-  const u = data.usage || {};
-  const debug = "\n\n———\n[調査用] stop_reason=" + (data.stop_reason || "?") +
-    " / 入力=" + (u.input_tokens || "?") +
-    " / 出力=" + (u.output_tokens || "?") +
-    (u.thinking_tokens != null ? " / 思考=" + u.thinking_tokens : "");
-
-  if (!text) {
-    return "（本文が空でした）" + debug;
+// 分析結果（栄養ごとの摂取/目安/%）を棒グラフで表示する。
+function renderAnalysis(data, container) {
+  container.innerHTML = "";
+  const items = Array.isArray(data.items) ? data.items : [];
+  if (items.length === 0) {
+    container.textContent = "結果を読み取れませんでした。";
+    return;
   }
-  return text + debug;
+
+  for (const item of items) {
+    const intake = toNumber(item.intake);
+    const target = toNumber(item.target);
+    const percent = item.percent != null
+      ? Math.round(toNumber(item.percent))
+      : (target > 0 ? Math.round((intake / target) * 100) : 0);
+    const status = analysisStatus(percent, !!item.overBad);
+
+    const row = document.createElement("div");
+    row.className = "judge-row";
+
+    const head = document.createElement("div");
+    head.className = "judge-head";
+
+    const label = document.createElement("span");
+    label.className = "judge-label";
+    label.textContent = item.name || "";
+
+    const value = document.createElement("span");
+    value.className = "judge-value";
+    value.textContent = roundNutrient(intake) + " / " + roundNutrient(target) +
+      (item.unit || "") + "（" + percent + "%）";
+
+    const mark = document.createElement("span");
+    mark.className = "judge-mark " + status.className;
+    mark.textContent = status.text;
+
+    head.appendChild(label);
+    head.appendChild(value);
+    head.appendChild(mark);
+
+    const bar = document.createElement("div");
+    bar.className = "judge-bar";
+    const fill = document.createElement("div");
+    fill.className = "judge-bar-fill " + status.className;
+    fill.style.width = Math.min(percent, 100) + "%";
+    bar.appendChild(fill);
+
+    row.appendChild(head);
+    row.appendChild(bar);
+    container.appendChild(row);
+  }
+}
+
+// 達成率(%)から判定を返す。overBad は「多いほど悪い」栄養。
+function analysisStatus(percent, overBad) {
+  if (overBad) {
+    if (percent > 120) return { text: "とりすぎ", className: "under" };
+    if (percent > 100) return { text: "やや多い", className: "soft" };
+    return { text: "OK", className: "ok" };
+  }
+  if (percent >= 100) return { text: "達成", className: "ok" };
+  if (percent >= 70) return { text: "もう少し", className: "soft" };
+  return { text: "不足", className: "under" };
 }
 
 
