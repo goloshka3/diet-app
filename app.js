@@ -680,6 +680,7 @@ async function readLabelWithClaude(base64, mediaType) {
     body: JSON.stringify({
       model: AI_MODEL,
       max_tokens: 1024,
+      thinking: { type: "disabled" }, // 表を読むだけなので思考は不要
       messages: [
         {
           role: "user",
@@ -804,7 +805,8 @@ async function requestDayEvaluation(dateStr, entries) {
     },
     body: JSON.stringify({
       model: AI_MODEL,
-      max_tokens: 1500,
+      max_tokens: 2000,
+      thinking: { type: "disabled" }, // この用途は思考不要。本文にトークンを使わせる
       messages: [{ role: "user", content: prompt }],
     }),
   });
@@ -815,7 +817,11 @@ async function requestDayEvaluation(dateStr, entries) {
   }
 
   const data = await res.json();
-  return (data.content || []).map((block) => block.text || "").join("").trim();
+  const text = (data.content || []).map((block) => block.text || "").join("").trim();
+  if (!text) {
+    throw new Error("空の返答でした（stop_reason: " + (data.stop_reason || "不明") + "）");
+  }
+  return text;
 }
 
 
