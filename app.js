@@ -258,6 +258,16 @@ function buildJudgement(total, targets) {
 
     row.appendChild(head);
     row.appendChild(bar);
+
+    // 「不足」のときは、補う食材の候補を出す（ステージ3）
+    if (status.className === "under" && RICH_FOODS[key]) {
+      const suggest = document.createElement("div");
+      suggest.className = "judge-suggest";
+      const foods = RICH_FOODS[key].slice(0, 4).join(" ・ "); // 先頭4つ
+      suggest.textContent = "補う食材: " + foods;
+      row.appendChild(suggest);
+    }
+
     box.appendChild(row);
   }
 

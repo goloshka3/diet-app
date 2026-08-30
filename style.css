@@ -208,6 +208,16 @@ button:active {
 .judge-bar-fill.under { background: #e53935; }
 .judge-bar-fill.over { background: #fb8c00; }
 
+/* 「不足」のときに出る、補う食材の候補 */
+.judge-suggest {
+  font-size: 0.75rem;
+  color: #555;
+  background: #f1f8e9;
+  border-radius: 4px;
+  padding: 3px 8px;
+  margin-top: 1px;
+}
+
 .entry {
   display: flex;
   justify-content: space-between;
