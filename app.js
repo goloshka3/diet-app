@@ -530,9 +530,9 @@ async function closeScanner() {
 //  サーバーを持たないので、ブラウザから直接 api.anthropic.com を呼ぶ。
 //  そのために "anthropic-dangerous-direct-browser-access" ヘッダを付ける。
 
-// 使うモデル。安くて速い haiku を既定に。
-//  もっと賢く読ませたいときは "claude-sonnet-5"（料金は数倍）に変える。
-const AI_MODEL = "claude-haiku-4-5";
+// 使うモデル。成分表の読み取り精度を優先して sonnet を使う（1回 約1円）。
+//  もっと安く・速くしたいときは "claude-haiku-4-5"（精度は落ちる）に変える。
+const AI_MODEL = "claude-sonnet-5";
 
 aiReadBtn.addEventListener("click", () => {
   if (!loadApiKey()) {
@@ -552,13 +552,19 @@ aiPhotoInput.addEventListener("change", async () => {
   aiReadBtn.disabled = true;
   try {
     barcodeStatus.textContent = "画像を準備中…";
-    const image = await resizeImageToBase64(file, 1400);
+    const image = await resizeImageToBase64(file, 1568);
 
-    barcodeStatus.textContent = "Claude が読み取り中…（数秒〜10秒）";
-    const nutrition = await readLabelWithClaude(image.base64, image.mediaType);
+    barcodeStatus.textContent = "Claude が読み取り中…（数秒〜15秒）";
+    const raw = await readLabelWithClaude(image.base64, image.mediaType);
 
-    fillFromAi(nutrition);
-    barcodeStatus.textContent = "読み取りました。数値を確認してから「追加する」を押してください。";
+    const per100g = toPer100g(raw); // 100gあたりに換算（計算はアプリ側で）
+    fillFromAi(per100g);
+
+    let msg = "読み取りました。数値を画像と見比べて確認してください。";
+    if (per100g.basisUnknown) {
+      msg = "基準量（○gあたり）が読めませんでした。換算せずそのまま入れています。要確認。";
+    }
+    barcodeStatus.textContent = msg;
   } catch (e) {
     console.error(e);
     barcodeStatus.textContent = "読み取りに失敗しました: " + e.message;
@@ -593,14 +599,24 @@ function resizeImageToBase64(file, maxSize) {
   });
 }
 
-// 画像を Claude に送り、栄養のオブジェクトを受け取る。
+// 画像を Claude に送り、「表に印刷されたままの」数値を受け取る。
+//  換算はさせない（モデルは暗算が不正確なため）。
 async function readLabelWithClaude(base64, mediaType) {
   const prompt =
-    "この画像は食品パッケージの栄養成分表示です。次の項目を読み取り、" +
-    "「100gあたり」に換算してください（表が『1食あたり』等なら重量から換算）。\n" +
-    "表に無い項目は 0。単位は kcal, g, g, g, g, mg, mg。\n" +
-    "説明は一切書かず、次の形の JSON だけを返してください:\n" +
-    '{"name":"商品名（分かれば。無ければ空文字）","kcal":0,"protein":0,"fat":0,"carb":0,"fiber":0,"iron":0,"calcium":0}';
+    "この画像は食品の栄養成分表示です。表に印刷されている数値だけを読み取ってください。" +
+    "推測・補完・単位換算はしないこと。表に無い項目は null。\n\n" +
+    "読み取る項目:\n" +
+    "- name: 商品名（画像内にあれば。無ければ空文字）\n" +
+    "- basis_grams: 表が「何グラムあたり」の値か（「100g当たり」→100、「1袋(60g)」→60）。グラム数の記載が無ければ null\n" +
+    "- kcal: エネルギー(kcal の数値)\n" +
+    "- protein: たんぱく質(g)\n" +
+    "- fat: 脂質(g)\n" +
+    "- carb: 炭水化物(無ければ糖質)(g)\n" +
+    "- fiber: 食物繊維(g)\n" +
+    "- iron: 鉄(mg)\n" +
+    "- calcium: カルシウム(mg)\n\n" +
+    "説明文なしで、次の形の JSON のみを返す:\n" +
+    '{"name":"","basis_grams":100,"kcal":null,"protein":null,"fat":null,"carb":null,"fiber":null,"iron":null,"calcium":null}';
 
   const res = await fetch("https://api.anthropic.com/v1/messages", {
     method: "POST",
@@ -612,7 +628,7 @@ async function readLabelWithClaude(base64, mediaType) {
     },
     body: JSON.stringify({
       model: AI_MODEL,
-      max_tokens: 400,
+      max_tokens: 1024,
       messages: [
         {
           role: "user",
@@ -644,18 +660,47 @@ function parseNutritionJson(text) {
   return JSON.parse(match[0]);
 }
 
-// AI が読んだ栄養を入力欄に反映する。
+// Claude が読んだ「印刷値」を 100gあたり に換算する（計算はここで行う）。
+//  basis_grams が数値なら 100/その値 を掛ける。不明なら換算せずそのまま。
+function toPer100g(raw) {
+  const grams = Number(raw.basis_grams);
+  const known = grams > 0;
+  const factor = known ? 100 / grams : 1;
+
+  // null / 空 は 0 に。数値は factor を掛けて丸める。
+  const conv = (v) => {
+    if (v === null || v === undefined || v === "") {
+      return 0;
+    }
+    const num = Number(String(v).replace(/,/g, "")); // "1,050" などの区切りを除去
+    return isNaN(num) ? 0 : roundNutrient(num * factor);
+  };
+
+  return {
+    name: raw.name || "",
+    basisUnknown: !known,
+    kcal: conv(raw.kcal),
+    protein: conv(raw.protein),
+    fat: conv(raw.fat),
+    carb: conv(raw.carb),
+    fiber: conv(raw.fiber),
+    iron: conv(raw.iron),
+    calcium: conv(raw.calcium),
+  };
+}
+
+// 換算後の栄養を入力欄に反映する。
 function fillFromAi(n) {
   if (n.name) {
-    foodInput.value = n.name + "（100gあたり）";
+    foodInput.value = n.name + (n.basisUnknown ? "（要確認）" : "（100gあたり）");
   }
-  kcalInput.value = roundNutrient(toNumber(n.kcal));
-  proteinInput.value = roundNutrient(toNumber(n.protein));
-  fatInput.value = roundNutrient(toNumber(n.fat));
-  carbInput.value = roundNutrient(toNumber(n.carb));
-  fiberInput.value = roundNutrient(toNumber(n.fiber));
-  ironInput.value = roundNutrient(toNumber(n.iron));
-  calciumInput.value = roundNutrient(toNumber(n.calcium));
+  kcalInput.value = n.kcal;
+  proteinInput.value = n.protein;
+  fatInput.value = n.fat;
+  carbInput.value = n.carb;
+  fiberInput.value = n.fiber;
+  ironInput.value = n.iron;
+  calciumInput.value = n.calcium;
   foodSelect.value = "";
 }
 
