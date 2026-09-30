@@ -1020,6 +1020,8 @@ importFile.addEventListener("change", () => {
       }
       render();
       backupStatus.textContent = entries.length + "件を読み込みました。";
+      // 読み込んだファイル自体がバックアップなので、その日時を「最後の保存」にする
+      localStorage.setItem(LAST_BACKUP_STORAGE, (data && data.exportedAt) || new Date().toISOString());
       updateBackupNag();
     } catch (e) {
       console.error(e);
