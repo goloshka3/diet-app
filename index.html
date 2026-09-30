@@ -5,6 +5,12 @@
   <!-- スマホで見たときに拡大されず、画面幅に合わせて表示するための設定 -->
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>食事記録</title>
+  <!-- ホーム画面に追加したとき、普通のアプリのように開くための設定 -->
+  <link rel="manifest" href="manifest.json">
+  <link rel="apple-touch-icon" href="icons/icon-180.png">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="食事記録">
+  <meta name="theme-color" content="#2e7d32">
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -14,6 +20,12 @@
   </header>
 
   <main>
+    <!-- バックアップの声かけ（しばらく保存していないときだけ app.js が出す） -->
+    <div id="backup-nag" class="backup-nag" hidden>
+      <span id="backup-nag-text"></span>
+      <button type="button" id="backup-nag-btn">今すぐ保存</button>
+    </div>
+
     <!-- 入力フォーム -->
     <form id="add-form">
       <div class="field">
@@ -133,8 +145,8 @@
 
       <h3 class="settings-h">データのバックアップ</h3>
       <p class="hint">
-        記録をファイルに書き出し／読み込みできます。Safari のデータ消去で記録が
-        消えることがあるので、ときどき書き出しておくと安心です。
+        記録をファイルに書き出し／読み込みできます。iPhone では「ファイルに保存」で
+        iCloud Drive に置いておくと安心です。7日保存していないと、上に声かけが出ます。
       </p>
       <button type="button" id="export-btn">書き出す（エクスポート）</button>
       <button type="button" id="import-btn">読み込む（インポート）</button>

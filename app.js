@@ -42,6 +42,9 @@ const saveFoodBtn = document.getElementById("save-food-btn");
 const saveFoodStatus = document.getElementById("save-food-status");
 const myFoodsList = document.getElementById("my-foods-list");
 const logList = document.getElementById("log-list");
+const backupNag = document.getElementById("backup-nag");
+const backupNagText = document.getElementById("backup-nag-text");
+const backupNagBtn = document.getElementById("backup-nag-btn");
 
 // 栄養の項目一覧。key=保存名、basic:true は常に表示、それ以外は「詳細」を開くと表示。
 // 入力欄はこの一覧から app.js が自動で作る（HTMLに1つずつ書かない）。
@@ -914,8 +917,13 @@ fillProfileForm();
 //  データのバックアップ（エクスポート／インポート）
 // -----------------------------------------------
 
+const LAST_BACKUP_STORAGE = "diet-app-last-backup"; // 最後に書き出した日時
+const BACKUP_NAG_DAYS = 7; // この日数書き出していなければ声をかける
+
 // 記録＋設定を JSON ファイルとして書き出す。
-exportBtn.addEventListener("click", () => {
+//  iPhone では共有シートを出す（「ファイルに保存」で iCloud Drive に置ける）。
+//  共有シートが使えない PC などでは、普通のダウンロードにする。
+async function exportBackup() {
   const data = {
     app: "diet-app",
     version: 1,
@@ -924,19 +932,52 @@ exportBtn.addEventListener("click", () => {
     profile: loadProfile(),
     myFoods: loadMyFoods(),
   };
+  const fileName = "diet-app-backup-" + localDateStr(new Date()) + ".json";
   const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
-  const url = URL.createObjectURL(blob);
+  const file = new File([blob], fileName, { type: "application/json" });
 
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = "diet-app-backup-" + localDateStr(new Date()) + ".json";
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  URL.revokeObjectURL(url);
+  try {
+    if (navigator.canShare && navigator.canShare({ files: [file] })) {
+      await navigator.share({ files: [file], title: fileName });
+    } else {
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = fileName;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    }
+  } catch (e) {
+    // 共有シートを閉じた（キャンセル）ときはここに来る。保存済みにはしない
+    backupStatus.textContent = "書き出しを中止しました。";
+    return;
+  }
 
-  backupStatus.textContent = loadEntries().length + "件の記録を書き出しました。";
-});
+  localStorage.setItem(LAST_BACKUP_STORAGE, new Date().toISOString());
+  backupStatus.textContent = data.entries.length + "件の記録を書き出しました。";
+  updateBackupNag();
+}
+
+exportBtn.addEventListener("click", exportBackup);
+backupNagBtn.addEventListener("click", exportBackup);
+
+// しばらく書き出していなければ、画面のいちばん上に声かけを出す。
+function updateBackupNag() {
+  const count = loadEntries().length;
+  const last = localStorage.getItem(LAST_BACKUP_STORAGE);
+  const days = last ? Math.floor((Date.now() - new Date(last).getTime()) / 86400000) : null;
+
+  if (count === 0 || (days !== null && days < BACKUP_NAG_DAYS)) {
+    backupNag.hidden = true;
+    return;
+  }
+  backupNagText.textContent = days === null
+    ? "記録がまだ一度も保存されていません。"
+    : "最後の保存から " + days + " 日たちました。";
+  backupNag.hidden = false;
+}
 
 // ファイルを選んで記録を読み込む（今の記録は置き換え）。
 importBtn.addEventListener("click", () => importFile.click());
@@ -979,6 +1020,7 @@ importFile.addEventListener("change", () => {
       }
       render();
       backupStatus.textContent = entries.length + "件を読み込みました。";
+      updateBackupNag();
     } catch (e) {
       console.error(e);
       backupStatus.textContent = "読み込めませんでした: " + e.message;
@@ -1225,3 +1267,16 @@ renderMyFoodsList();
 
 // 最初の一覧を表示する
 render();
+
+// しばらく保存していなければ声をかける
+updateBackupNag();
+
+// ホーム画面のアプリとして動かすための準備
+//  ・サービスワーカー: 電波が無くても開けるようにする（https のときだけ動く）
+//  ・storage.persist(): 「この記録は大事なので勝手に消さないで」とブラウザに頼む
+if ("serviceWorker" in navigator && location.protocol === "https:") {
+  navigator.serviceWorker.register("sw.js").catch((e) => console.error(e));
+}
+if (navigator.storage && navigator.storage.persist) {
+  navigator.storage.persist().catch(() => {});
+}
