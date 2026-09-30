@@ -432,49 +432,29 @@ function formatNutrition(entry) {
 }
 
 // その日の合計(total)と目標(targets)を比べて、判定の表示部品を作る。
-//  目標を外している項目だけ棒グラフで大きく出し、達成した項目は1行にまとめる。
+//  全項目を棒グラフで出す（達成した項目も数字を隠さない）。
+//  並びは「目標を外している項目（重い順）」→「達成した項目」。
 function buildJudgement(total, targets) {
   const box = document.createElement("div");
   box.className = "judge";
 
-  const attention = []; // 目標を外している項目
-  const okNames = [];    // 目標クリアの項目名
-
+  const items = [];
   for (const key of JUDGED) {
     const info = NUTRIENTS.find((n) => n.key === key);
     const got = roundNutrient(toNumber(total[key]));
     const goal = targets[key];
     const percent = goal > 0 ? Math.round((got / goal) * 100) : 0;
     const status = judgeStatus(key, percent);
-
-    if (status.className === "ok") {
-      okNames.push(info.label);
-    } else {
-      attention.push({ key, info, got, goal, percent, status });
-    }
+    items.push({ key, info, got, goal, percent, status });
   }
 
-  // 重い順に並べる（不足・とりすぎ → もう少し）
-  const severity = { under: 0, over: 0, soft: 1 };
-  attention.sort((a, b) => severity[a.status.className] - severity[b.status.className]);
+  // 重い順に並べる（不足・とりすぎ → もう少し → 達成）。同じ重さなら元の並び順のまま。
+  const severity = { under: 0, over: 0, soft: 1, ok: 2 };
+  items.sort((a, b) => severity[a.status.className] - severity[b.status.className]);
 
-  for (const item of attention) {
+  for (const item of items) {
     box.appendChild(buildJudgeRow(item));
   }
-
-  const okLine = document.createElement("p");
-  okLine.className = "judge-ok";
-  if (okNames.length === 0) {
-    okLine.textContent = "";
-  } else if (attention.length === 0) {
-    okLine.textContent = "✓ すべての項目が目標をクリア";
-  } else {
-    okLine.textContent = "✓ 目標クリア（" + okNames.length + "）: " + okNames.join("・");
-  }
-  if (okLine.textContent) {
-    box.appendChild(okLine);
-  }
-
   return box;
 }
 

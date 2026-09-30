@@ -456,6 +456,7 @@ button:active {
 .judge-pct.under { color: #c62828; }
 .judge-pct.soft { color: #8d6e00; }
 .judge-pct.over { color: #e65100; }
+.judge-pct.ok { color: #2e7d32; }
 
 .judge-mark {
   flex-shrink: 0;
@@ -469,6 +470,7 @@ button:active {
 .judge-mark.soft { background: #fff8e1; color: #8d6e00; }
 .judge-mark.under { background: #ffebee; color: #c62828; }
 .judge-mark.over { background: #fff3e0; color: #e65100; }
+.judge-mark.ok { background: #e8f5e9; color: #2e7d32; }
 
 /* 棒グラフ */
 .judge-bar {
@@ -486,14 +488,7 @@ button:active {
 .judge-bar-fill.soft { background: #f9a825; }
 .judge-bar-fill.under { background: #e53935; }
 .judge-bar-fill.over { background: #fb8c00; }
-
-/* 目標クリアした項目のまとめ行 */
-.judge-ok {
-  margin: 2px 0 0;
-  font-size: 0.78rem;
-  line-height: 1.6;
-  color: #2e7d32;
-}
+.judge-bar-fill.ok { background: #66bb6a; }
 
 /* 「不足」のときに出る、補う食材の候補 */
 .judge-suggest {
