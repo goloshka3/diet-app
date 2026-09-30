@@ -28,16 +28,21 @@
         <p class="hint" id="ai-status"></p>
       </div>
 
+      <!-- いつもの食べ物。中身は app.js が作る。タップ1回で記録 -->
       <div class="field">
-        <label for="food-select">食品を選ぶ（栄養を自動入力）</label>
-        <select id="food-select">
-          <option value="">— 一覧から選ぶ —</option>
-        </select>
+        <label for="quick-search">いつもの食べ物（タップで記録）</label>
+        <input type="search" id="quick-search" placeholder="名前で絞り込み（内蔵の食品も出ます）">
+        <div id="quick-list" class="quick-list"></div>
+        <p class="hint" id="quick-status"></p>
       </div>
 
+      <!-- 手入力と、写真で読んだ値の確認。ふだんは閉じておく -->
+      <details class="manual" id="manual-box">
+        <summary>手で入力する・中身を確かめる</summary>
+        <div class="manual-body">
       <div class="field">
         <label for="food-input">食べたもの</label>
-        <input type="text" id="food-input" placeholder="例: 納豆ごはん、みそ汁" required>
+        <input type="text" id="food-input" placeholder="例: 納豆ごはん、みそ汁">
       </div>
 
       <div class="field">
@@ -57,6 +62,9 @@
 
       <button type="button" id="save-food-btn" class="scan-open-btn">この内容を食品リストに登録</button>
       <p class="hint" id="save-food-status"></p>
+
+        </div>
+      </details>
 
       <button type="submit">追加する</button>
     </form>

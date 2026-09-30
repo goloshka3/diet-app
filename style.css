@@ -496,3 +496,70 @@ button:active {
   text-align: center;
   padding: 32px 0;
 }
+
+/* ===== いつもの食べ物（タップで記録） ===== */
+.quick-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.quick-chip {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  width: auto;
+  max-width: 100%;
+  padding: 8px 12px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  text-align: left;
+  background: #f1f8e9;
+  color: #1a1a1a;
+  border: 1px solid #c5e1a5;
+  border-radius: 18px;
+}
+
+.quick-chip:active {
+  background: #dcedc8;
+}
+
+.quick-kcal {
+  font-size: 0.72rem;
+  font-weight: 400;
+  color: #2e7d32;
+  white-space: nowrap;
+}
+
+/* 「取り消す」「量を変える」などの文字だけのボタン */
+.link-btn {
+  width: auto;
+  padding: 2px 6px;
+  margin-left: 4px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  background: none;
+  color: #1565c0;
+  text-decoration: underline;
+}
+
+.link-btn:active {
+  background: none;
+  color: #0d47a1;
+}
+
+/* 手入力・中身の確認（折りたたみ） */
+.manual > summary {
+  cursor: pointer;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #444;
+}
+
+.manual-body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 12px;
+}

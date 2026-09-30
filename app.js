@@ -32,7 +32,10 @@ const importFile = document.getElementById("import-file");
 const backupStatus = document.getElementById("backup-status");
 const aiReadBtn = document.getElementById("ai-read");
 const aiPhotoInput = document.getElementById("ai-photo");
-const foodSelect = document.getElementById("food-select");
+const quickSearch = document.getElementById("quick-search");
+const quickList = document.getElementById("quick-list");
+const quickStatus = document.getElementById("quick-status");
+const manualBox = document.getElementById("manual-box");
 const foodInput = document.getElementById("food-input");
 const amountInput = document.getElementById("amount-input");
 const saveFoodBtn = document.getElementById("save-food-btn");
@@ -270,6 +273,7 @@ function buildSummaryBox(entries, targets) {
 }
 
 function render() {
+  renderQuickList(); // 記録が変わると「いつもの食べ物」の並びも変わる
   const entries = loadEntries();
 
   // いったん中身を空にする
@@ -534,7 +538,7 @@ function formatDate(dateStr) {
 
 
 // -----------------------------------------------
-//  食品一覧（ドロップダウン）
+//  登録した食品
 // -----------------------------------------------
 
 const MY_FOODS_STORAGE = "diet-app-my-foods"; // 自分で登録した食品
@@ -553,52 +557,140 @@ function saveMyFoods(arr) {
   localStorage.setItem(MY_FOODS_STORAGE, JSON.stringify(arr));
 }
 
-// 内蔵 FOODS ＋ 登録食品 を1つの配列にまとめたもの（選択の値＝この配列の添字）
-let combinedFoods = [];
+// -----------------------------------------------
+//  いつもの食べ物（タップ1回で記録）
+// -----------------------------------------------
+//  候補 = 過去に記録した食べ物 ＋ 登録した食品 ＋ 内蔵の食品。
+//  よく食べる順（同じなら最近食べた順）に並べ、上から15件を出す。
+//  名前で絞り込むと、内蔵の食品も含めて一致するものを出す。
 
-// ドロップダウンを組み立て直す。登録した食品を先頭に、内蔵27品を後ろに。
-function buildFoodOptions() {
-  foodSelect.innerHTML = '<option value="">— 一覧から選ぶ —</option>';
-  combinedFoods = [];
+// "納豆 ×2" → { base: "納豆", amount: 2 }。×が無ければ amount は 1。
+function splitAmount(name) {
+  const m = name.match(/\s*×([\d.]+)\s*$/);
+  if (!m) {
+    return { base: name.trim(), amount: 1 };
+  }
+  const amount = toNumber(m[1]) || 1;
+  return { base: name.slice(0, m.index).trim(), amount: amount };
+}
 
-  const myFoods = loadMyFoods();
-  if (myFoods.length > 0) {
-    const myGroup = document.createElement("optgroup");
-    myGroup.label = "登録した食品";
-    myFoods.forEach((food) => {
-      combinedFoods.push(food);
-      myGroup.appendChild(makeFoodOption(food, combinedFoods.length - 1));
-    });
-    foodSelect.appendChild(myGroup);
+// 候補の一覧を作る。[{ food, count, last }]（food は1つ分の栄養を持つ）
+function quickCandidates() {
+  const map = new Map(); // 名前 → 候補
+
+  // 過去の記録（古い順に見て、同じ名前は新しい値で上書き）
+  const entries = loadEntries().slice().sort((a, b) => a.id - b.id);
+  for (const e of entries) {
+    const { base, amount } = splitAmount(e.food || "");
+    if (!base) {
+      continue;
+    }
+    const food = { name: base };
+    for (const key of NUTRIENT_KEYS) {
+      food[key] = roundNutrient(toNumber(e[key]) / amount); // 1つ分に戻す
+    }
+    if (e.estimated) {
+      food.estimated = e.estimated;
+    }
+    const prev = map.get(base);
+    map.set(base, { food: food, count: (prev ? prev.count : 0) + 1, last: e.id });
   }
 
-  const builtinGroup = document.createElement("optgroup");
-  builtinGroup.label = "内蔵の食品";
-  FOODS.forEach((food) => {
-    combinedFoods.push(food);
-    builtinGroup.appendChild(makeFoodOption(food, combinedFoods.length - 1));
+  // 登録した食品（自分で登録した値を優先する）
+  for (const f of loadMyFoods()) {
+    const prev = map.get(f.name);
+    map.set(f.name, { food: f, count: prev ? prev.count : 0, last: prev ? prev.last : 0 });
+  }
+
+  // 内蔵の食品（まだ無いものだけ）
+  for (const f of FOODS) {
+    if (!map.has(f.name)) {
+      map.set(f.name, { food: f, count: 0, last: 0 });
+    }
+  }
+
+  return Array.from(map.values())
+    .sort((a, b) => (b.count - a.count) || (b.last - a.last));
+}
+
+// 候補のボタンを並べ直す。
+function renderQuickList() {
+  const query = quickSearch.value.trim().toLowerCase();
+  let list = quickCandidates();
+  list = query
+    ? list.filter((c) => c.food.name.toLowerCase().includes(query)).slice(0, 30)
+    : list.slice(0, 15);
+
+  quickList.innerHTML = "";
+  if (list.length === 0) {
+    quickList.innerHTML = '<p class="hint">見つかりません。写真で記録するか、下に手で入力してください。</p>';
+    return;
+  }
+
+  for (const c of list) {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "quick-chip";
+
+    const name = document.createElement("span");
+    name.textContent = c.food.name;
+    const kcal = document.createElement("span");
+    kcal.className = "quick-kcal";
+    kcal.textContent = Math.round(toNumber(c.food.kcal)) + "kcal";
+
+    btn.appendChild(name);
+    btn.appendChild(kcal);
+    btn.addEventListener("click", () => quickRecord(c.food));
+    quickList.appendChild(btn);
+  }
+}
+
+quickSearch.addEventListener("input", renderQuickList);
+
+// タップした食べ物を、そのまま（1つ分で）記録する。
+function quickRecord(food) {
+  const entry = { date: dateInput.value, food: food.name };
+  for (const key of NUTRIENT_KEYS) {
+    entry[key] = toNumber(food[key]);
+  }
+  if (food.estimated && food.estimated.length) {
+    entry.estimated = food.estimated.slice();
+  }
+  addEntry(entry); // ここで entry.id が付く
+
+  quickStatus.innerHTML = "";
+  const msg = document.createElement("span");
+  msg.textContent = "「" + food.name + "」を記録しました。 ";
+
+  // 取り消す：いま記録した1件を消す
+  const undo = document.createElement("button");
+  undo.type = "button";
+  undo.className = "link-btn";
+  undo.textContent = "取り消す";
+  undo.addEventListener("click", () => {
+    deleteEntry(entry.id);
+    quickStatus.textContent = "取り消しました。";
   });
-  foodSelect.appendChild(builtinGroup);
+
+  // 量を変える：いま記録した1件を消して、入力欄に入れ直す
+  const edit = document.createElement("button");
+  edit.type = "button";
+  edit.className = "link-btn";
+  edit.textContent = "量を変える";
+  edit.addEventListener("click", () => {
+    deleteEntry(entry.id);
+    quickStatus.textContent = "入力欄に入れました。「食べた量」を直して「追加する」を押してください。";
+    foodInput.value = food.name;
+    applyNutrition(food, food.estimated);
+    manualBox.open = true;
+    amountInput.focus();
+    amountInput.select();
+  });
+
+  quickStatus.appendChild(msg);
+  quickStatus.appendChild(undo);
+  quickStatus.appendChild(edit);
 }
-
-function makeFoodOption(food, index) {
-  const option = document.createElement("option");
-  option.value = index;
-  option.textContent = food.name;
-  return option;
-}
-
-// 食品が選ばれたら、名前と栄養を入力欄に写す。
-foodSelect.addEventListener("change", () => {
-  const index = foodSelect.value;
-  if (index === "") {
-    return; // 「— 一覧から選ぶ —」に戻したときは何もしない
-  }
-
-  const food = combinedFoods[index];
-  foodInput.value = food.name;
-  applyNutrition(food, food.estimated); // food は kcal/protein/... を持つ
-});
 
 // いま入力欄にある内容（1つ分の栄養）を食品リストに登録する。
 saveFoodBtn.addEventListener("click", () => {
@@ -626,7 +718,7 @@ saveFoodBtn.addEventListener("click", () => {
     saveFoodStatus.textContent = "「" + name + "」を食品リストに登録しました。";
   }
   saveMyFoods(myFoods);
-  buildFoodOptions();
+  renderQuickList();
   renderMyFoodsList();
 });
 
@@ -655,7 +747,7 @@ function renderMyFoodsList() {
       const arr = loadMyFoods();
       arr.splice(index, 1);
       saveMyFoods(arr);
-      buildFoodOptions();
+      renderQuickList();
       renderMyFoodsList();
     });
 
@@ -882,7 +974,7 @@ importFile.addEventListener("change", () => {
       }
       if (data && Array.isArray(data.myFoods)) {
         saveMyFoods(data.myFoods);
-        buildFoodOptions();
+        renderQuickList();
         renderMyFoodsList();
       }
       render();
@@ -1073,7 +1165,7 @@ function fillFromAi(result) {
     values[key] = num(src[key]);
   }
   applyNutrition(values, Array.isArray(result.estimated) ? result.estimated : []);
-  foodSelect.value = "";
+  manualBox.open = true; // 中身を確かめられるように開く
 }
 
 
@@ -1088,7 +1180,11 @@ form.addEventListener("submit", (event) => {
   const food = foodInput.value.trim();
 
   if (!date || !food) {
-    return; // 日付か食べたものが空なら何もしない
+    // 日付か食べたものが空なら記録しない。入力欄を開いて知らせる
+    manualBox.open = true;
+    foodInput.focus();
+    foodInput.placeholder = "食べたものの名前を入れてください";
+    return;
   }
 
   // 栄養欄には「量」を反映済みの値が入っている（下の量ハンドラで更新）ので、そのまま保存する。
@@ -1103,13 +1199,13 @@ form.addEventListener("submit", (event) => {
 
   // 次の入力に備えて、日付以外の欄を空にする
   aiStatus.textContent = "";
-  foodSelect.value = "";
   foodInput.value = "";
   resetAmount(); // 量を 1 に戻す
   for (const key of NUTRIENT_KEYS) {
     inputByKey[key].value = "";
   }
-  foodInput.focus();
+  foodInput.placeholder = "例: 納豆ごはん、みそ汁";
+  manualBox.open = false;
 });
 
 
@@ -1124,8 +1220,7 @@ attachNutrientInputListeners();
 // 日付欄の初期値を「今日」にする
 dateInput.value = localDateStr(new Date());
 
-// 食品一覧のドロップダウンと、登録食品リストを組み立てる
-buildFoodOptions();
+// 登録食品リストを組み立てる（いつもの食べ物は render() の中で作る）
 renderMyFoodsList();
 
 // 最初の一覧を表示する
