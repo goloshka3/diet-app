@@ -20,19 +20,12 @@
         <label for="date-input">日付</label>
         <input type="date" id="date-input" required>
       </div>
+      <!-- いちばん上に「写真で記録」。成分表示でも料理でも、撮れば AI が全部の栄養を埋める -->
       <div class="field">
-        <label for="barcode-input">バーコード番号 または 商品名で検索</label>
-        <div class="barcode-row">
-          <input type="text" id="barcode-input" placeholder="例: 4901234567890 / チョコレート">
-          <button type="button" id="barcode-search">検索</button>
-        </div>
-        <div class="scan-row">
-          <button type="button" id="scan-open" class="scan-open-btn">📷 バーコード</button>
-          <button type="button" id="ai-read" class="scan-open-btn">🧠 成分表を撮る</button>
-        </div>
-        <input type="file" id="ai-photo" accept="image/*" capture="environment" hidden>
-        <p class="hint" id="barcode-status"></p>
-        <div id="search-results"></div>
+        <button type="button" id="ai-read" class="photo-btn">📷 写真で記録</button>
+        <p class="hint">成分表示でも、料理そのものでも OK。表に無い栄養は AI が推測して埋めます（<span class="est-sample">推定</span>の欄）。</p>
+        <input type="file" id="ai-photo" accept="image/*" hidden>
+        <p class="hint" id="ai-status"></p>
       </div>
 
       <div class="field">
@@ -112,7 +105,7 @@
       <button type="button" id="pf-save">この条件で保存</button>
       <p class="hint" id="pf-status"></p>
 
-      <h3 class="settings-h">Claude API キー（成分表のAI読み取り用）</h3>
+      <h3 class="settings-h">Claude API キー（写真の読み取り用）</h3>
       <div class="field">
         <label for="api-key-input">API キー</label>
         <div class="key-row">
@@ -141,17 +134,6 @@
       <p class="hint" id="backup-status"></p>
     </details>
   </main>
-
-  <!-- カメラ映像を出すための全画面オーバーレイ（ふだんは hidden で非表示） -->
-  <div id="scanner-overlay" hidden>
-    <div class="scanner-box">
-      <div id="scanner-view"></div>
-      <button type="button" id="scan-close">閉じる</button>
-    </div>
-  </div>
-
-  <!-- バーコード読み取りライブラリ（外部・CDNから1ファイル読み込み） -->
-  <script src="https://cdn.jsdelivr.net/npm/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
 
   <!-- データの定義ファイルを先に読み込む（app.js がこれらの中身を使うため） -->
   <script src="foods.js"></script>

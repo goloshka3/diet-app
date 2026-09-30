@@ -2,7 +2,7 @@
 //  食事記録アプリ
 //  食べたもの＋栄養7種類を記録 → 日付ごとに一覧・その日の合計 →
 //  食事摂取基準と比べて不足を判定 → 補う食材を提案。
-//  食品は「一覧から選ぶ / バーコード・商品名で検索 / 手入力」。
+//  食品は「写真で記録（AI） / いつもの食べ物から選ぶ / 手入力」。
 //  データはブラウザの中（localStorage）に保存する。
 // ===============================================
 
@@ -14,10 +14,7 @@ const API_KEY_STORAGE = "diet-app-api-key"; // Claude API キーの保存名
 // 画面の部品を先に取っておく（毎回 getElementById を書かなくて済む）
 const form = document.getElementById("add-form");
 const dateInput = document.getElementById("date-input");
-const barcodeInput = document.getElementById("barcode-input");
-const barcodeSearchBtn = document.getElementById("barcode-search");
-const barcodeStatus = document.getElementById("barcode-status");
-const searchResults = document.getElementById("search-results");
+const aiStatus = document.getElementById("ai-status");
 const apiKeyInput = document.getElementById("api-key-input");
 const apiKeyToggleBtn = document.getElementById("api-key-toggle");
 const apiKeySaveBtn = document.getElementById("api-key-save");
@@ -33,9 +30,6 @@ const exportBtn = document.getElementById("export-btn");
 const importBtn = document.getElementById("import-btn");
 const importFile = document.getElementById("import-file");
 const backupStatus = document.getElementById("backup-status");
-const scanOpenBtn = document.getElementById("scan-open");
-const scanCloseBtn = document.getElementById("scan-close");
-const scannerOverlay = document.getElementById("scanner-overlay");
 const aiReadBtn = document.getElementById("ai-read");
 const aiPhotoInput = document.getElementById("ai-photo");
 const foodSelect = document.getElementById("food-select");
@@ -424,11 +418,16 @@ function buildDayBox(date, dayEntries, targets, todayStr) {
 
 // 記録1件（または合計）の栄養を「エネルギー 520kcal ・ たんぱく質 18g ・ …」にする。
 // 値が入っている項目だけ表示する（0 や未記録は省く）。
+//  AI が推定した項目には「≈」を付ける。
 function formatNutrition(entry) {
+  const est = new Set(entry.estimated || []);
   const parts = NUTRIENTS
     .filter((n) => toNumber(entry[n.key]) > 0)
-    .map((n) => `${n.label} ${roundNutrient(toNumber(entry[n.key]))}${n.unit}`);
-  return parts.length ? parts.join(" ・ ") : "栄養の記録なし";
+    .map((n) => `${n.label} ${est.has(n.key) ? "≈" : ""}${roundNutrient(toNumber(entry[n.key]))}${n.unit}`);
+  if (!parts.length) {
+    return "栄養の記録なし";
+  }
+  return parts.join(" ・ ") + (est.size > 0 ? "（≈ は AI の推定）" : "");
 }
 
 // その日の合計(total)と目標(targets)を比べて、判定の表示部品を作る。
@@ -598,7 +597,7 @@ foodSelect.addEventListener("change", () => {
 
   const food = combinedFoods[index];
   foodInput.value = food.name;
-  applyNutrition(food); // food は kcal/protein/... を持つ
+  applyNutrition(food, food.estimated); // food は kcal/protein/... を持つ
 });
 
 // いま入力欄にある内容（1つ分の栄養）を食品リストに登録する。
@@ -612,6 +611,9 @@ saveFoodBtn.addEventListener("click", () => {
   const food = { name: name };
   for (const key of NUTRIENT_KEYS) {
     food[key] = roundNutrient(baseNutrition[key]); // 量の倍率を除いた1つ分の値
+  }
+  if (estimatedKeys.size > 0) {
+    food.estimated = Array.from(estimatedKeys);
   }
 
   const myFoods = loadMyFoods();
@@ -676,12 +678,29 @@ for (const key of NUTRIENT_KEYS) {
   baseNutrition[key] = 0;
 }
 
-// 食品選択・バーコード・AI読み取りから呼ぶ。1つ分の値をセットし、欄に反映し、量を1に戻す。
-function applyNutrition(values) {
+// AI が推定した栄養のキー。入力欄をオレンジにして、表から読んだ値と区別する。
+const estimatedKeys = new Set();
+
+function setEstimated(keys) {
+  estimatedKeys.clear();
+  for (const key of keys || []) {
+    if (inputByKey[key]) {
+      estimatedKeys.add(key);
+    }
+  }
+  for (const key of NUTRIENT_KEYS) {
+    inputByKey[key].classList.toggle("est", estimatedKeys.has(key));
+  }
+}
+
+// 食品選択・AI読み取りから呼ぶ。1つ分の値をセットし、欄に反映し、量を1に戻す。
+//  estimated = 推定値の栄養のキーの配列（無ければ全部「読んだ値」扱い）
+function applyNutrition(values, estimated) {
   for (const key of NUTRIENT_KEYS) {
     baseNutrition[key] = toNumber(values[key]);
     inputByKey[key].value = roundNutrient(baseNutrition[key]);
   }
+  setEstimated(estimated);
   amountInput.value = "1";
 }
 
@@ -691,6 +710,7 @@ function resetAmount() {
   for (const key of NUTRIENT_KEYS) {
     baseNutrition[key] = 0;
   }
+  setEstimated([]);
 }
 
 // 量が変わったら、各栄養欄を「1つ分 × 量」に更新し、商品名に「×N」を付ける。
@@ -715,6 +735,9 @@ function attachNutrientInputListeners() {
     inputByKey[key].addEventListener("input", () => {
       const amount = toNumber(amountInput.value) || 1;
       baseNutrition[key] = toNumber(inputByKey[key].value) / (amount > 0 ? amount : 1);
+      // 手で直した値は「推定」ではなくなる
+      estimatedKeys.delete(key);
+      inputByKey[key].classList.remove("est");
     });
   }
 }
@@ -874,187 +897,24 @@ importFile.addEventListener("change", () => {
 
 
 // -----------------------------------------------
-//  商品の検索（Open Food Facts）
-// -----------------------------------------------
-//  Open Food Facts = 世界中の食品データベース（有志運営・無料・APIキー不要）。
-//  ・入力が数字だけ → バーコード番号として1件だけ取得
-//  ・文字を含む     → 商品名として検索し、候補を一覧表示（選ぶと入力）
-//  日本の商品は登録が少ないことがある。見つからなければ手入力に戻る。
-
-barcodeSearchBtn.addEventListener("click", searchProduct);
-
-// 入力内容を見て、番号検索か名前検索かを振り分ける。
-async function searchProduct() {
-  const query = barcodeInput.value.trim();
-  if (!query) {
-    return;
-  }
-
-  barcodeSearchBtn.disabled = true;
-  searchResults.innerHTML = "";
-  barcodeStatus.textContent = "検索中…";
-
-  try {
-    if (/^\d+$/.test(query)) {
-      await lookupBarcode(query); // 数字だけ → 番号検索
-    } else {
-      await searchByName(query);  // それ以外 → 名前検索
-    }
-  } catch (e) {
-    console.error(e);
-    barcodeStatus.textContent = "通信エラーで取得できませんでした。電波の良い所で再度お試しください。";
-  } finally {
-    barcodeSearchBtn.disabled = false;
-  }
-}
-
-// バーコード番号で1件だけ取得する。
-async function lookupBarcode(code) {
-  const url = "https://world.openfoodfacts.org/api/v2/product/" +
-    encodeURIComponent(code) + ".json";
-  const res = await fetch(url);
-  const data = await res.json();
-
-  if (data.status !== 1 || !data.product) {
-    barcodeStatus.textContent = "この番号の商品は見つかりませんでした。栄養は手入力してください。";
-    return;
-  }
-
-  fillFromOpenFoodFacts(data.product);
-  barcodeStatus.textContent = "取得しました（値は100gあたり。実際に食べた量に合わせて直してください）";
-}
-
-// 商品名で検索し、候補を一覧表示する。
-async function searchByName(query) {
-  const url = "https://world.openfoodfacts.org/cgi/search.pl" +
-    "?search_terms=" + encodeURIComponent(query) +
-    "&search_simple=1&action=process&json=1&page_size=10" +
-    "&fields=code,product_name,product_name_ja,brands,nutriments";
-  const res = await fetch(url);
-  const data = await res.json();
-
-  // 栄養データが入っている候補だけに絞る
-  const products = (data.products || []).filter((p) => {
-    const n = p.nutriments || {};
-    return n["energy-kcal_100g"] != null || n.proteins_100g != null;
-  });
-
-  if (products.length === 0) {
-    barcodeStatus.textContent = "栄養データ付きの商品が見つかりませんでした。手入力してください。";
-    return;
-  }
-
-  barcodeStatus.textContent = products.length + "件見つかりました。1つ選んでください。";
-  for (const product of products) {
-    const btn = document.createElement("button");
-    btn.type = "button";
-    btn.className = "search-result";
-    const brand = product.brands ? product.brands + " / " : "";
-    btn.textContent = brand + (product.product_name_ja || product.product_name || "（名称不明）");
-    btn.addEventListener("click", () => {
-      fillFromOpenFoodFacts(product);
-      searchResults.innerHTML = "";
-      barcodeStatus.textContent = "取得しました（100gあたり。食べた量に合わせて直してください）";
-    });
-    searchResults.appendChild(btn);
-  }
-}
-
-// Open Food Facts の商品データを、入力欄に写す。
-function fillFromOpenFoodFacts(product) {
-  const n = product.nutriments || {};
-  const name = product.product_name_ja || product.product_name || "商品";
-
-  // 食塩相当量：salt が無ければ sodium(g) から換算（Na g × 2.54）
-  const salt = n.salt_100g != null
-    ? toNumber(n.salt_100g)
-    : toNumber(n.sodium_100g) * 2.54;
-
-  foodInput.value = name + "（100gあたり）";
-  applyNutrition({
-    kcal: toNumber(n["energy-kcal_100g"]),
-    protein: toNumber(n.proteins_100g),
-    fat: toNumber(n.fat_100g),
-    satfat: toNumber(n["saturated-fat_100g"]),
-    carb: toNumber(n.carbohydrates_100g),
-    sugar: toNumber(n.sugars_100g),
-    fiber: toNumber(n.fiber_100g),
-    salt: salt,
-    // ミネラルは g 単位で返るので 1000倍して mg にする
-    potassium: toNumber(n.potassium_100g) * 1000,
-    calcium: toNumber(n.calcium_100g) * 1000,
-    magnesium: toNumber(n.magnesium_100g) * 1000,
-    iron: toNumber(n.iron_100g) * 1000,
-    zinc: toNumber(n.zinc_100g) * 1000,
-    vitC: toNumber(n["vitamin-c_100g"]) * 1000, // g→mg
-  });
-
-  foodSelect.value = ""; // 一覧の選択はクリア
-}
-
-
-// -----------------------------------------------
-//  カメラでバーコードを読み取る（html5-qrcode）
-// -----------------------------------------------
-
-let scanner = null; // 起動中のカメラ。閉じるときに止めるため覚えておく
-
-scanOpenBtn.addEventListener("click", openScanner);
-scanCloseBtn.addEventListener("click", closeScanner);
-
-async function openScanner() {
-  scannerOverlay.hidden = false;
-  scanner = new Html5Qrcode("scanner-view");
-
-  try {
-    await scanner.start(
-      { facingMode: "environment" }, // 背面カメラを使う
-      { fps: 10, qrbox: { width: 260, height: 160 } }, // 読み取り枠（横長）
-      (decodedText) => {
-        // 読み取り成功：番号を入力欄に入れて、カメラを閉じて検索
-        barcodeInput.value = decodedText;
-        closeScanner();
-        searchProduct();
-      },
-      () => {} // 1フレームごとの「まだ読めない」通知は無視
-    );
-  } catch (e) {
-    console.error(e);
-    barcodeStatus.textContent = "カメラを起動できませんでした。ブラウザのカメラ許可を確認してください。";
-    closeScanner();
-  }
-}
-
-async function closeScanner() {
-  if (scanner) {
-    try {
-      await scanner.stop(); // カメラを止める
-      scanner.clear();
-    } catch (e) {
-      // すでに止まっている場合など。無視してよい
-    }
-    scanner = null;
-  }
-  scannerOverlay.hidden = true;
-}
-
-
-// -----------------------------------------------
-//  成分表を撮って AI（Claude）で読み取る
+//  写真を撮って AI（Claude）で栄養を埋める
 // -----------------------------------------------
 //  写真 → 縮小 → Claude API に送信 → 栄養のJSONを受け取る → 入力欄に反映。
+//  ・成分表示の写真: 表の数値はそのまま読む。表に無い栄養は、商品名・原材料から推測する。
+//  ・料理の写真:     料理名と量を推測し、全部の栄養を推測する。
+//  推測した栄養は「推定」の印を付けて、表から読んだ値と区別する（入力欄がオレンジになる）。
 //  サーバーを持たないので、ブラウザから直接 api.anthropic.com を呼ぶ。
 //  そのために "anthropic-dangerous-direct-browser-access" ヘッダを付ける。
 
-// 成分表の画像読み取り用。精度優先で sonnet（1回 約1円）。
+// 写真の読み取り用。精度優先で sonnet（1回 約1〜2円）。
 const AI_MODEL = "claude-sonnet-5";
 
 aiReadBtn.addEventListener("click", () => {
   if (!loadApiKey()) {
-    barcodeStatus.textContent = "先に「⚙️ 設定」で Claude API キーを保存してください。";
+    aiStatus.textContent = "先に「⚙️ 設定」で Claude API キーを保存してください。";
     return;
   }
-  aiPhotoInput.click(); // 隠してあるファイル選択（＝カメラ）を開く
+  aiPhotoInput.click(); // 隠してあるファイル選択（カメラ／写真ライブラリ）を開く
 });
 
 aiPhotoInput.addEventListener("change", async () => {
@@ -1066,19 +926,20 @@ aiPhotoInput.addEventListener("change", async () => {
 
   aiReadBtn.disabled = true;
   try {
-    barcodeStatus.textContent = "画像を準備中…";
+    aiStatus.textContent = "画像を準備中…";
     const image = await resizeImageToBase64(file, 1568);
 
-    barcodeStatus.textContent = "Claude が読み取り中…（数秒〜15秒）";
-    const raw = await readLabelWithClaude(image.base64, image.mediaType);
+    aiStatus.textContent = "Claude が読み取り中…（10〜30秒）";
+    const raw = await readPhotoWithClaude(image.base64, image.mediaType);
 
     fillFromAi(raw);
-    barcodeStatus.textContent =
-      "読み取りました。表の「" + (raw.serving || "分量") +
-      "」の値です。食べた量が違うときは数値を直してください。";
+    const basis = raw.serving ? "「" + raw.serving + "」の値です。" : "";
+    aiStatus.textContent =
+      (raw.kind === "dish" ? "料理から推測しました。" : "成分表示を読みました。") + basis +
+      "オレンジの欄は推定です。量が違えば「食べた量」を直して、「追加する」を押してください。";
   } catch (e) {
     console.error(e);
-    barcodeStatus.textContent = "読み取りに失敗しました: " + e.message;
+    aiStatus.textContent = "読み取りに失敗しました: " + e.message;
   } finally {
     aiReadBtn.disabled = false;
   }
@@ -1110,28 +971,43 @@ function resizeImageToBase64(file, maxSize) {
   });
 }
 
-// 画像を Claude に送り、「表に印刷されたままの」数値を受け取る。
-//  換算はさせない（モデルは暗算が不正確なため）。
-async function readLabelWithClaude(base64, mediaType) {
-  // 読み取る栄養の一覧を NUTRIENTS から作る（項目を増やしてもここは自動で追従）
+// 画像を Claude に送り、全部の栄養（表から読んだ値＋推定した値）を受け取る。
+async function readPhotoWithClaude(base64, mediaType) {
+  // 栄養の一覧を NUTRIENTS から作る（項目を増やしてもここは自動で追従）
   const fieldList = NUTRIENTS
     .map((x) => "- " + x.key + ": " + x.label + "（" + x.unit + "）")
     .join("\n");
 
-  const emptyJson = JSON.stringify(
-    NUTRIENTS.reduce((o, x) => { o[x.key] = null; return o; }, {})
+  const zeroJson = JSON.stringify(
+    NUTRIENTS.reduce((o, x) => { o[x.key] = 0; return o; }, {})
   );
 
-  const prompt =
-    "この画像は食品の栄養成分表示です。表に印刷されている数値をそのまま読み取ってください。\n" +
-    "・推測や補完はしない。表に無い項目は null。\n" +
-    "・単位は指定のもので。表が違う単位なら数値だけ合わせる（例: ナトリウムしか無ければ 食塩相当量 = ナトリウムmg × 2.54 ÷ 1000）。\n\n" +
-    "読み取る栄養（キー: 名称(単位)）:\n" + fieldList + "\n\n" +
-    "さらに:\n" +
-    "- name: 商品名（画像内にあれば。無ければ空文字）\n" +
-    "- serving: 表が何あたりの値か、書かれている通りの文字列（例「100g当たり」「1袋(60g)当たり」）\n\n" +
-    "説明文なしで、次の形の JSON のみを返す:\n" +
-    '{"name":"","serving":"","nutrients":' + emptyJson + "}";
+  const prompt = [
+    "食事記録アプリ用に、この写真の食べ物の栄養を、下の全項目について数値で答えてください。",
+    "写真は次のどちらかです。",
+    "",
+    "【A】食品の栄養成分表示（パッケージの表）が写っている → kind は \"label\"",
+    "・表に印刷されている項目は、表の数値をそのまま使う（換算しない）。",
+    "  ナトリウムしか無ければ 食塩相当量 = ナトリウムmg × 2.54 ÷ 1000。",
+    "・表に無い項目は、商品名・原材料名（写っていれば）・食品の種類から、表と同じ分量あたりで推測する。",
+    "・serving は表が何あたりの値か、書かれている通り（例「100g当たり」「1袋(60g)当たり」）。",
+    "",
+    "【B】料理・食べ物そのものが写っている（成分表示なし） → kind は \"dish\"",
+    "・料理名と、写っている量（例「1人前 約350g」）を推測し、その量の栄養を全項目推測する。",
+    "・serving に推測した量を書く。",
+    "",
+    "推測のしかた:",
+    "・日本食品標準成分表（八訂）の値を基準に、材料の構成から見積もる。",
+    "・null や空欄は使わない。本当に含まれないもの（例: 植物性食品のビタミンB12）は 0。",
+    "・推測した項目のキーは、すべて estimated の配列に入れる（【A】で表から読んだ項目は入れない）。",
+    "",
+    "栄養の項目（キー: 名称(単位)）:",
+    fieldList,
+    "",
+    "name は商品名または料理名（短く）。",
+    "説明文なしで、次の形の JSON のみを返す:",
+    '{"kind":"label","name":"","serving":"","nutrients":' + zeroJson + ',"estimated":[]}',
+  ].join("\n");
 
   const res = await fetch("https://api.anthropic.com/v1/messages", {
     method: "POST",
@@ -1143,7 +1019,7 @@ async function readLabelWithClaude(base64, mediaType) {
     },
     body: JSON.stringify({
       model: AI_MODEL,
-      max_tokens: 2000,
+      max_tokens: 3000,
       messages: [
         {
           role: "user",
@@ -1175,8 +1051,7 @@ function parseNutritionJson(text) {
   return JSON.parse(match[0]);
 }
 
-// Claude が読んだ栄養（表の値そのまま）を入力欄に反映する。
-//  換算はしない。null/空 は 0 にする。
+// Claude の結果を入力欄に反映する。null/空 は 0 にする。
 function fillFromAi(result) {
   // "1,050" などの区切りを除いて数値化。数値でなければ 0。
   const num = (v) => {
@@ -1192,13 +1067,12 @@ function fillFromAi(result) {
     foodInput.value = label;
   }
 
-  // 新しい形 {nutrients:{...}}。古い形（直下にキー）にも一応対応。
   const src = result.nutrients || result;
   const values = {};
   for (const key of NUTRIENT_KEYS) {
     values[key] = num(src[key]);
   }
-  applyNutrition(values);
+  applyNutrition(values, Array.isArray(result.estimated) ? result.estimated : []);
   foodSelect.value = "";
 }
 
@@ -1222,12 +1096,13 @@ form.addEventListener("submit", (event) => {
   for (const key of NUTRIENT_KEYS) {
     entry[key] = toNumber(inputByKey[key].value);
   }
+  if (estimatedKeys.size > 0) {
+    entry.estimated = Array.from(estimatedKeys); // どの栄養が AI の推定値か
+  }
   addEntry(entry);
 
   // 次の入力に備えて、日付以外の欄を空にする
-  barcodeInput.value = "";
-  barcodeStatus.textContent = "";
-  searchResults.innerHTML = "";
+  aiStatus.textContent = "";
   foodSelect.value = "";
   foodInput.value = "";
   resetAmount(); // 量を 1 に戻す

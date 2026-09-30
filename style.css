@@ -207,37 +207,6 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   color: #888;
 }
 
-/* バーコード検索の入力欄＋ボタンを横並びに */
-.barcode-row {
-  display: flex;
-  gap: 8px;
-}
-
-.barcode-row button {
-  width: auto;
-  flex-shrink: 0;
-  padding: 10px 16px;
-}
-
-/* 商品名検索の候補リスト */
-#search-results {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  margin-top: 6px;
-}
-
-.search-result {
-  width: 100%;
-  text-align: left;
-  font-size: 0.85rem;
-  font-weight: 400;
-  padding: 8px 10px;
-  background: #fff;
-  color: #1a1a1a;
-  border: 1px solid #ccc;
-}
-
 /* 「カメラで読み取る」ボタン（白地に緑枠） */
 .scan-open-btn {
   width: 100%;
@@ -247,54 +216,26 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   border: 1px solid #2e7d32;
 }
 
-/* バーコード／成分表ボタンを1行に半分ずつ */
-.scan-row {
-  display: flex;
-  gap: 8px;
-  margin-top: 8px;
-}
-
-.scan-row .scan-open-btn {
-  flex: 1;
-  min-width: 0;
-  margin-top: 0;
-  padding: 10px 6px;
-  font-size: 0.9rem;
-}
-
-/* カメラ映像の全画面オーバーレイ */
-#scanner-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.85);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 16px;
-  z-index: 100;
-}
-
-/* hidden のときは確実に隠す（id 指定は優先度が高いので明示する） */
-#scanner-overlay[hidden] {
-  display: none;
-}
-
-.scanner-box {
+/* 「写真で記録」ボタン（いちばん大事な操作なので大きく） */
+.photo-btn {
   width: 100%;
-  max-width: 480px;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-#scanner-view {
-  width: 100%;
+  font-size: 1.15rem;
+  padding: 18px 12px;
   border-radius: 12px;
-  overflow: hidden;
-  background: #000;
+}
+
+/* AI が推定した栄養の入力欄（オレンジ） */
+.nut-field input.est {
+  background: #fff3e0;
+  border-color: #fb8c00;
+}
+
+.est-sample {
+  background: #fff3e0;
+  border: 1px solid #fb8c00;
+  border-radius: 4px;
+  padding: 0 4px;
+  color: #e65100;
 }
 
 button {
