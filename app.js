@@ -121,6 +121,15 @@ function buildNutrientFields() {
 }
 
 
+// 日付を "2026-08-29" の形にする（日本時間のまま）。
+//  toISOString() は世界標準時(UTC)になるので、日本では朝9時前だと前日になってしまう。
+function localDateStr(d) {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return y + "-" + m + "-" + day;
+}
+
 // 入力文字を数値にする。空欄や数字でないものは 0 として扱う。
 function toNumber(value) {
   const n = parseFloat(value);
@@ -210,7 +219,7 @@ function summaryData(entries, periodDays) {
   if (periodDays > 0) {
     const cutoff = new Date();
     cutoff.setDate(cutoff.getDate() - (periodDays - 1));
-    const cutoffStr = cutoff.toISOString().slice(0, 10);
+    const cutoffStr = localDateStr(cutoff);
     inRange = entries.filter((e) => e.date >= cutoffStr);
   }
 
@@ -292,11 +301,11 @@ function render() {
   // その日の目標値（設定で変えられる。毎日同じなのでループの外で1回だけ取得）
   const targets = getTargets(loadProfile());
 
-  const todayStr = new Date().toISOString().slice(0, 10);
+  const todayStr = localDateStr(new Date());
   // 直近1週間の境目（今日を含めて7日）
   const weekAgo = new Date();
   weekAgo.setDate(weekAgo.getDate() - 6);
-  const weekAgoStr = weekAgo.toISOString().slice(0, 10);
+  const weekAgoStr = localDateStr(weekAgo);
 
   // 直近1週間ぶんはそのまま、それより前は折りたたみの中へ
   const olderBox = document.createElement("details");
@@ -825,7 +834,7 @@ exportBtn.addEventListener("click", () => {
 
   const a = document.createElement("a");
   a.href = url;
-  a.download = "diet-app-backup-" + new Date().toISOString().slice(0, 10) + ".json";
+  a.download = "diet-app-backup-" + localDateStr(new Date()) + ".json";
   document.body.appendChild(a);
   a.click();
   a.remove();
@@ -1258,7 +1267,7 @@ buildNutrientFields();
 attachNutrientInputListeners();
 
 // 日付欄の初期値を「今日」にする
-dateInput.value = new Date().toISOString().slice(0, 10);
+dateInput.value = localDateStr(new Date());
 
 // 食品一覧のドロップダウンと、登録食品リストを組み立てる
 buildFoodOptions();
